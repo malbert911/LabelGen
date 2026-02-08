@@ -10,6 +10,7 @@ urlpatterns = [
     path('box-label/', views.box_label, name='box_label'),
     path('api/lookup-serial/', views.lookup_serial, name='lookup_serial'),
     path('reprint/', views.reprint, name='reprint'),
+    path('printer-settings/', views.printer_settings, name='printer_settings'),
     
     # Admin UPC Management
     path('admin-login/', views.admin_login, name='admin_login'),

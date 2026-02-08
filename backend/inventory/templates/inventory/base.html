@@ -182,6 +182,31 @@
         .theme-toggle {
             cursor: pointer;
         }
+        
+        /* Printer status indicator */
+        .printer-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.875rem;
+        }
+        
+        .printer-status.is-online {
+            background-color: hsl(141, 53%, 53%, 0.2);
+            color: hsl(141, 71%, 48%);
+        }
+        
+        .printer-status.is-offline {
+            background-color: hsl(348, 86%, 61%, 0.2);
+            color: hsl(348, 86%, 61%);
+        }
+        
+        .printer-status.is-checking {
+            background-color: hsl(204, 86%, 53%, 0.2);
+            color: hsl(204, 86%, 53%);
+        }
     </style>
 </head>
 <body>
@@ -191,17 +216,50 @@
             <a class="navbar-item" href="/">
                 <strong>🏷️ LabelGen</strong>
             </a>
+            
+            <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false" data-target="navbarMain">
+                <span aria-hidden="true"></span>
+                <span aria-hidden="true"></span>
+                <span aria-hidden="true"></span>
+            </a>
         </div>
 
-        <div class="navbar-menu">
+        <div id="navbarMain" class="navbar-menu">
             <div class="navbar-start">
-                <a class="navbar-item" href="{% url 'inventory:admin_upc' %}">
+                <a class="navbar-item" href="{% url 'inventory:bulk_generate' %}">
+                    <span class="icon"><i class="fas fa-barcode"></i></span>
+                    <span>Bulk Gen</span>
+                </a>
+                
+                <a class="navbar-item" href="{% url 'inventory:box_label' %}">
+                    <span class="icon"><i class="fas fa-box"></i></span>
+                    <span>Box Label</span>
+                </a>
+                
+                <a class="navbar-item" href="{% url 'inventory:reprint' %}">
+                    <span class="icon"><i class="fas fa-print"></i></span>
+                    <span>Reprint</span>
+                </a>
+                
+                <a class="navbar-item" href="{% url 'inventory:printer_settings' %}">
                     <span class="icon"><i class="fas fa-cog"></i></span>
+                    <span>Printers</span>
+                </a>
+                
+                <a class="navbar-item" href="{% url 'inventory:admin_upc' %}">
+                    <span class="icon"><i class="fas fa-shield-alt"></i></span>
                     <span>Admin</span>
                 </a>
             </div>
             
             <div class="navbar-end">
+                <div class="navbar-item">
+                    <span class="printer-status is-checking" id="printerStatus">
+                        <span class="icon is-small"><i class="fas fa-circle-notch fa-spin"></i></span>
+                        <span>Checking...</span>
+                    </span>
+                </div>
+                
                 <div class="navbar-item">
                     <button class="button is-ghost theme-toggle" id="themeToggle" title="Toggle dark/light mode">
                         <span class="icon">
@@ -282,6 +340,47 @@
             
             // Initialize theme
             setTheme(getTheme());
+        })();
+        
+        // Printer bridge status check
+        (function() {
+            const BRIDGE_URL = 'http://localhost:5001';
+            const statusEl = document.getElementById('printerStatus');
+            
+            async function checkPrinterBridge() {
+                try {
+                    const response = await fetch(`${BRIDGE_URL}/health`, {
+                        method: 'GET',
+                        signal: AbortSignal.timeout(2000) // 2 second timeout
+                    });
+                    
+                    if (response.ok) {
+                        statusEl.className = 'printer-status is-online';
+                        statusEl.innerHTML = '<span class="icon is-small"><i class="fas fa-circle"></i></span><span>Bridge Online</span>';
+                    } else {
+                        throw new Error('Bridge unhealthy');
+                    }
+                } catch (error) {
+                    statusEl.className = 'printer-status is-offline';
+                    statusEl.innerHTML = '<span class="icon is-small"><i class="fas fa-circle"></i></span><span>Bridge Offline</span>';
+                }
+            }
+            
+            // Check on page load
+            checkPrinterBridge();
+        })();
+        
+        // Mobile navbar burger toggle
+        (function() {
+            const burger = document.querySelector('.navbar-burger');
+            const menu = document.getElementById('navbarMain');
+            
+            if (burger && menu) {
+                burger.addEventListener('click', () => {
+                    burger.classList.toggle('is-active');
+                    menu.classList.toggle('is-active');
+                });
+            }
         })();
         
         // Helper function to show notifications

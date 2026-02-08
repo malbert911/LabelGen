@@ -1,0 +1,15 @@
+# Binaries
+labelgen-bridge
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test files
+*.test
+
+# Output files
+*.out
+
+# Vendor
+vendor/

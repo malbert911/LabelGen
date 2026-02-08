@@ -107,6 +107,11 @@ def reprint(request):
     return render(request, 'inventory/reprint.html')
 
 
+def printer_settings(request):
+    """Printer configuration page."""
+    return render(request, 'inventory/printer_settings.html')
+
+
 # Admin UPC Management Views
 
 def admin_login(request):
