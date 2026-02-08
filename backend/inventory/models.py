@@ -91,6 +91,12 @@ class Config(models.Model):
         verbose_name="Current Serial Counter",
         help_text="Auto-incrementing counter for next serial number"
     )
+    admin_password = models.CharField(
+        max_length=100,
+        default='admin',
+        verbose_name="Admin Password",
+        help_text="Password for UPC management admin interface"
+    )
 
     class Meta:
         verbose_name = "Configuration"

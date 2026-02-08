@@ -1,0 +1,395 @@
+{% extends "inventory/base.html" %}
+
+{% block title %}Admin - LabelGen{% endblock %}
+
+{% block content %}
+<div class="level">
+    <div class="level-left">
+        <div class="level-item">
+            <div>
+                <h1 class="title">
+                    <span class="icon-text">
+                        <span class="icon"><i class="fas fa-cog"></i></span>
+                        <span>Admin</span>
+                    </span>
+                </h1>
+                <p class="subtitle">Configure serial numbers, manage UPCs, and update password</p>
+            </div>
+        </div>
+    </div>
+    <div class="level-right">
+        <div class="level-item">
+            <a href="{% url 'inventory:admin_logout' %}" class="button is-light">
+                <span class="icon"><i class="fas fa-sign-out-alt"></i></span>
+                <span>Logout</span>
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Configuration Section -->
+<div class="box">
+    <h2 class="title is-4">
+        <span class="icon-text">
+            <span class="icon"><i class="fas fa-sliders-h"></i></span>
+            <span>Serial Number Configuration</span>
+        </span>
+    </h2>
+    
+    {% if config_updated %}
+        <div class="notification is-success">
+            <button class="delete"></button>
+            Configuration updated successfully!
+        </div>
+    {% endif %}
+    
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="update_config" value="1">
+        
+        <div class="columns">
+            <div class="column">
+                <div class="field">
+                    <label class="label">{{ config_form.serial_digits.label }}</label>
+                    <div class="control">
+                        {{ config_form.serial_digits }}
+                    </div>
+                    {% if config_form.serial_digits.help_text %}
+                        <p class="help">{{ config_form.serial_digits.help_text }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="column">
+                <div class="field">
+                    <label class="label">{{ config_form.current_serial.label }}</label>
+                    <div class="control">
+                        {{ config_form.current_serial }}
+                    </div>
+                    {% if config_form.current_serial.help_text %}
+                        <p class="help">{{ config_form.current_serial.help_text }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="field">
+            <div class="control">
+                <button type="submit" class="button is-primary">
+                    <span class="icon"><i class="fas fa-save"></i></span>
+                    <span>Save Configuration</span>
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Password Section -->
+<div class="box">
+    <h2 class="title is-4">
+        <span class="icon-text">
+            <span class="icon"><i class="fas fa-key"></i></span>
+            <span>Change Admin Password</span>
+        </span>
+    </h2>
+    
+    {% if password_updated %}
+        <div class="notification is-success">
+            <button class="delete"></button>
+            Password updated successfully!
+        </div>
+    {% endif %}
+    
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="update_password" value="1">
+        
+        <div class="columns">
+            <div class="column is-half">
+                <div class="field">
+                    <label class="label">{{ password_form.new_password.label }}</label>
+                    <div class="control has-icons-left">
+                        {{ password_form.new_password }}
+                        <span class="icon is-left">
+                            <i class="fas fa-lock"></i>
+                        </span>
+                    </div>
+                    {% if password_form.new_password.errors %}
+                        <p class="help is-danger">{{ password_form.new_password.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="column is-half">
+                <div class="field">
+                    <label class="label">{{ password_form.confirm_password.label }}</label>
+                    <div class="control has-icons-left">
+                        {{ password_form.confirm_password }}
+                        <span class="icon is-left">
+                            <i class="fas fa-lock"></i>
+                        </span>
+                    </div>
+                    {% if password_form.confirm_password.errors %}
+                        <p class="help is-danger">{{ password_form.confirm_password.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        {% if password_form.non_field_errors %}
+            <div class="notification is-danger is-light">
+                {{ password_form.non_field_errors.0 }}
+            </div>
+        {% endif %}
+        
+        <div class="field">
+            <div class="control">
+                <button type="submit" class="button is-warning">
+                    <span class="icon"><i class="fas fa-key"></i></span>
+                    <span>Update Password</span>
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- CSV Upload Section -->
+<div class="box">
+    <h2 class="title is-4">
+        <span class="icon-text">
+            <span class="icon"><i class="fas fa-file-upload"></i></span>
+            <span>Bulk UPC Upload</span>
+        </span>
+    </h2>
+    
+    <div class="notification is-info is-light">
+        <p class="has-text-weight-bold">CSV Format:</p>
+        <p>Upload a CSV file with two columns: <code>PartNumber,UPC</code></p>
+        <p class="mt-2">Example:</p>
+        <pre>PartNumber,UPC
+232-9983,012345678901
+243-0012,098765432109
+343-0323,</pre>
+        <p class="mt-2">
+            <a href="{% url 'inventory:admin_download_template' %}" class="button is-small is-info">
+                <span class="icon"><i class="fas fa-download"></i></span>
+                <span>Download Template</span>
+            </a>
+        </p>
+    </div>
+    
+    <div class="file has-name is-boxed">
+        <label class="file-label">
+            <input class="file-input" type="file" id="csvFile" accept=".csv">
+            <span class="file-cta">
+                <span class="file-icon">
+                    <i class="fas fa-upload"></i>
+                </span>
+                <span class="file-label">
+                    Choose CSV file…
+                </span>
+            </span>
+            <span class="file-name" id="fileName">
+                No file selected
+            </span>
+        </label>
+    </div>
+    
+    <div class="mt-3">
+        <button class="button is-primary" id="uploadBtn" disabled>
+            <span class="icon"><i class="fas fa-cloud-upload-alt"></i></span>
+            <span>Upload & Process</span>
+        </button>
+    </div>
+    
+    <div id="uploadResults" class="mt-4" style="display: none;"></div>
+</div>
+
+<!-- Products Table -->
+<div class="box">
+    <h2 class="title is-4">
+        <span class="icon-text">
+            <span class="icon"><i class="fas fa-table"></i></span>
+            <span>Product UPC Management</span>
+        </span>
+    </h2>
+    
+    <p class="mb-3">
+        <strong>{{ products|length }}</strong> product(s) in database
+    </p>
+    
+    <div class="table-container">
+        <table class="table is-fullwidth is-striped is-hoverable">
+            <thead>
+                <tr>
+                    <th>Part Number</th>
+                    <th>UPC</th>
+                    <th width="120">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                <tr data-part="{{ product.part_number }}">
+                    <td class="is-family-monospace">{{ product.part_number }}</td>
+                    <td>
+                        <input type="text" 
+                               class="input upc-input" 
+                               value="{{ product.upc|default:'' }}"
+                               data-part="{{ product.part_number }}"
+                               placeholder="12-digit UPC">
+                    </td>
+                    <td>
+                        <button class="button is-small is-success save-upc-btn" 
+                                data-part="{{ product.part_number }}">
+                            <span class="icon"><i class="fas fa-save"></i></span>
+                            <span>Save</span>
+                        </button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="3" class="has-text-centered has-text-grey">
+                        No products yet. Generate some serial numbers to create products.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// File input handling
+const fileInput = document.getElementById('csvFile');
+const fileName = document.getElementById('fileName');
+const uploadBtn = document.getElementById('uploadBtn');
+
+fileInput.addEventListener('change', function(e) {
+    if (e.target.files.length > 0) {
+        fileName.textContent = e.target.files[0].name;
+        uploadBtn.disabled = false;
+    } else {
+        fileName.textContent = 'No file selected';
+        uploadBtn.disabled = true;
+    }
+});
+
+// CSV upload
+uploadBtn.addEventListener('click', async function() {
+    const file = fileInput.files[0];
+    if (!file) return;
+    
+    const btn = this;
+    btn.classList.add('is-loading');
+    btn.disabled = true;
+    
+    const formData = new FormData();
+    formData.append('csv_file', file);
+    
+    try {
+        const response = await fetch('{% url "inventory:admin_upload_csv" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            let message = `✅ Successfully processed!<br>`;
+            message += `Updated: ${result.updated} | Created: ${result.created}`;
+            
+            if (result.errors && result.errors.length > 0) {
+                message += `<br><br><strong>Warnings:</strong><ul>`;
+                result.errors.forEach(err => {
+                    message += `<li>${err}</li>`;
+                });
+                message += `</ul>`;
+            }
+            
+            showUploadResult(message, 'success');
+            
+            // Reload page after 2 seconds
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            showUploadResult(`❌ Error: ${result.error}`, 'danger');
+        }
+    } catch (error) {
+        showUploadResult(`❌ Error: ${error.message}`, 'danger');
+    } finally {
+        btn.classList.remove('is-loading');
+        btn.disabled = false;
+    }
+});
+
+function showUploadResult(message, type) {
+    const resultsDiv = document.getElementById('uploadResults');
+    resultsDiv.innerHTML = `<div class="notification is-${type}">${message}</div>`;
+    resultsDiv.style.display = 'block';
+}
+
+// Individual UPC save buttons
+document.querySelectorAll('.save-upc-btn').forEach(btn => {
+    btn.addEventListener('click', async function() {
+        const partNumber = this.getAttribute('data-part');
+        const input = document.querySelector(`.upc-input[data-part="${partNumber}"]`);
+        const upc = input.value.trim();
+        
+        this.classList.add('is-loading');
+        
+        try {
+            const response = await fetch('{% url "inventory:admin_update_upc" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    part_number: partNumber,
+                    upc: upc
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showNotification(`✅ UPC updated for ${partNumber}`, 'success');
+                input.classList.add('is-success');
+                setTimeout(() => input.classList.remove('is-success'), 2000);
+            } else {
+                showNotification(`❌ Error: ${result.error}`, 'danger');
+            }
+        } catch (error) {
+            showNotification(`❌ Error: ${error.message}`, 'danger');
+        } finally {
+            this.classList.remove('is-loading');
+        }
+    });
+});
+
+// Auto-close success notifications
+document.querySelectorAll('.notification .delete').forEach(btn => {
+    btn.addEventListener('click', function() {
+        this.parentElement.remove();
+    });
+});
+
+// Auto-logout when clicking non-admin navigation links
+document.querySelectorAll('a').forEach(link => {
+    if (!link.href.includes('admin') && !link.href.includes('#')) {
+        link.addEventListener('click', function(e) {
+            // Logout when clicking links to leave admin area
+            fetch('{% url "inventory:admin_logout" %}', {
+                method: 'GET',
+                keepalive: true
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

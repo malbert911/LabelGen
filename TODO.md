@@ -38,11 +38,14 @@
   - [x] Serial number search
   - [x] Display record details
   - [x] Reprint button
-- [ ] **Admin UPC Management** (`/admin/upc/`):
-  - [ ] Password protection (Django auth) _(Using built-in Django admin for now)_
-  - [ ] CSV upload (PartNumber,UPC format)
-  - [ ] Manual edit table with inline editing
-  - [ ] Add/delete Part-UPC associations
+- [x] **Admin UPC Management** (`/admin-upc/`):
+  - [x] Password protection (simple session-based auth)
+  - [x] Serial number configuration (start, digits, current)
+  - [x] Admin password configuration
+  - [x] CSV upload (PartNumber,UPC format)
+  - [x] Downloadable CSV template
+  - [x] Manual edit table with inline editing
+  - [x] Individual save buttons per product
   - [ ] Password protection (Django auth)
   - [ ] CSV upload (PartNumber,UPC format)
   - [ ] Manual edit table with inline editing

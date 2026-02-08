@@ -194,27 +194,70 @@ flowchart TD
 ---
 
 ### 4. Admin: UPC Management Page
-**Route:** `/admin/upc/`
+**Route:** `/admin-upc/` (password protected)
+
+**Authentication:**
+- Simple password protection (not Django admin auth)
+- Default password: `admin` (configurable in the admin interface)
+- Session-based authentication
+- Password stored in Config model
 
 **Features:**
-- Password protection (Django admin auth or custom)
-- Two sections:
-  1. **CSV Upload:**
-     - File upload field
-     - Expected format: `PartNumber,UPC`
-     - Bulk import with validation
-     - Preview before commit
-  2. **Manual Entry/Edit:**
-     - Table of all Product records
-     - Inline editing for UPC field
-     - Add new PartNumber/UPC pairs
-     - Delete associations
+
+1. **Serial Number Configuration:**
+   - Serial Start Position (default: 500)
+   - Serial Digit Count (default: 6, supports 10, 12, etc.)
+   - Current Serial Counter (next number to be generated)
+   - Admin Password (change the admin interface password)
+   - All settings editable in-page
+
+2. **CSV Bulk Upload:**
+   - File upload field with format: `PartNumber,UPC`
+   - Downloadable CSV template with examples
+   - Format example displayed on page:
+     ```csv
+     PartNumber,UPC
+     232-9983,012345678901
+     243-0012,098765432109
+     343-0323,
+     ```
+   - Preview before commit
+   - Validation with error reporting
+   - Creates new products or updates existing ones
+   - Handles blank UPC values (sets to NULL)
+
+3. **Manual UPC Entry/Edit:**
+   - Table of all Product records (sorted by Part Number)
+   - Shows Part Number and UPC columns
+   - Inline text input for UPC field (editable)
+   - Individual "Save" button per row
+   - Real-time updates with AJAX
+   - Visual feedback on save (green highlight)
+   - Shows product count
+
+**CSV Template Format:**
+```csv
+PartNumber,UPC
+232-9983,012345678901
+243-0012,098765432109
+343-0323,
+```
+- Header row: `PartNumber,UPC` (optional, will be skipped)
+- Part Number: Required (any format accepted, typically XXX-XXXX)
+- UPC: Optional (12 digits typical, blank = NULL)
+- Empty UPC values are valid (product will have NULL UPC)
+
+**Download Template:**
+- Button to download pre-formatted CSV template
+- Includes example data for reference
+- Ready to edit and re-upload
 
 **Bulma Components:**
 - `file is-boxed` for upload
 - `table is-hoverable is-striped` for data
 - `input` inline for editing
-- `modal` for confirmations
+- `button` for individual saves
+- `notification` for success/error messages
 
 ---
 

@@ -65,18 +65,20 @@
         </div>
 
         <div class="column is-12">
-            <div class="box has-background-light">
+            <div class="box">
                 <h3 class="title is-5">
                     <span class="icon-text">
                         <span class="icon"><i class="fas fa-cog"></i></span>
                         <span>Administration</span>
                     </span>
                 </h3>
-                <p class="mb-3">Manage products, UPC codes, and system configuration.</p>
-                <a href="{% url 'admin:index' %}" class="button is-dark">
-                    <span class="icon"><i class="fas fa-arrow-right"></i></span>
-                    <span>Go to Admin Panel</span>
-                </a>
+                <p class="mb-3">Manage serial number configuration, UPC codes, and system settings.</p>
+                <div class="buttons">
+                    <a href="{% url 'inventory:admin_upc' %}" class="button is-dark">
+                        <span class="icon"><i class="fas fa-cog"></i></span>
+                        <span>Admin</span>
+                    </a>
+                </div>
             </div>
         </div>
     </div>
