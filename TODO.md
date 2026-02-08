@@ -1,7 +1,5 @@
 # LabelGen Project Roadmap
 
-# LabelGen Project Roadmap
-
 ## Phase 1: Core Foundation 🏗️ ✅ COMPLETED
 - [x] Initialize Django project and app structure
 - [x] Set up Bulma.io CSS framework in base templates
@@ -12,35 +10,39 @@
 - [x] Create migrations
 - [x] Set up Django admin for Product and Config management
 
-## Phase 2: Core Business Logic 🧠
-- [ ] Implement configurable serial number generator:
-  - [ ] Read start position and digit count from Config
-  - [ ] Generate with leading zeros preserved
-  - [ ] Atomic increment to prevent collisions
-- [ ] Create bulk scan parser:
-  - [ ] Pair alternating Part/Qty barcode scans
-  - [ ] Validate Part Number format (XXX-XXXX)
-  - [ ] Validate Quantity (positive integer)
-- [ ] Implement Product auto-creation (with NULL UPC if not exists)
-- [ ] Build SerialNumber batch creation logic
+## Phase 2: Core Business Logic 🧠 ✅ COMPLETED
+- [x] Implement configurable serial number generator:
+  - [x] Read start position and digit count from Config
+  - [x] Generate with leading zeros preserved
+  - [x] Atomic increment to prevent collisions
+- [x] Create bulk scan parser:
+  - [x] Pair alternating Part/Qty barcode scans
+  - [x] Validate Part Number format (XXX-XXXX)
+  - [x] Validate Quantity (positive integer)
+- [x] Implement Product auto-creation (with NULL UPC if not exists)
+- [x] Build SerialNumber batch creation logic
 
-## Phase 3: User Interface Pages 🖥️
-- [ ] **Bulk Serial Generation Page** (`/generate/`):
-  - [ ] Dynamic table rows (start with 2, auto-add more)
-  - [ ] Auto-focus chain: Part → Qty → Part → Qty
-  - [ ] Live serial range preview
-  - [ ] "Generate & Print" action button
-  - [ ] Bulma styling with large scannable inputs
-- [ ] **Box Label Page** (`/box-label/`):
-  - [ ] Single serial input with auto-submit
-  - [ ] Display Serial, Part, UPC
-  - [ ] Print button
-  - [ ] Recent scans list
-- [ ] **Serial Reprint Page** (`/reprint/`):
-  - [ ] Serial number search
-  - [ ] Display record details
-  - [ ] Reprint button
+## Phase 3: User Interface Pages 🖥️ ✅ COMPLETED
+- [x] **Bulk Serial Generation Page** (`/generate/`):
+  - [x] Dynamic table rows (start with 2, auto-add more)
+  - [x] Auto-focus chain: Part → Qty → Part → Qty
+  - [x] Live serial range preview
+  - [x] "Generate & Print" action button
+  - [x] Bulma styling with large scannable inputs
+- [x] **Box Label Page** (`/box-label/`):
+  - [x] Single serial input with auto-submit
+  - [x] Display Serial, Part, UPC
+  - [x] Print button
+  - [x] Recent scans list
+- [x] **Serial Reprint Page** (`/reprint/`):
+  - [x] Serial number search
+  - [x] Display record details
+  - [x] Reprint button
 - [ ] **Admin UPC Management** (`/admin/upc/`):
+  - [ ] Password protection (Django auth) _(Using built-in Django admin for now)_
+  - [ ] CSV upload (PartNumber,UPC format)
+  - [ ] Manual edit table with inline editing
+  - [ ] Add/delete Part-UPC associations
   - [ ] Password protection (Django auth)
   - [ ] CSV upload (PartNumber,UPC format)
   - [ ] Manual edit table with inline editing

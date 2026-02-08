@@ -1,5 +1,14 @@
 # LabelGen - Setup Complete! 🎉
 
+## Monorepo Structure
+
+```
+LabelGen/
+├── backend/          # Django 6.x application
+├── bridge/           # Go printer bridge (coming in Phase 4)
+└── [docs]            # README, REQUIREMENTS, TODO, etc.
+```
+
 ## Phase 1: Core Foundation ✅ COMPLETED
 
 Django 6.x project has been successfully set up with the following components:
@@ -43,22 +52,27 @@ LabelGen/
 
 ### 🚀 Quick Start
 
-1. **Activate Virtual Environment**:
+1. **Navigate to backend directory**:
+   ```bash
+   cd backend
+   ```
+
+2. **Activate Virtual Environment**:
    ```bash
    source venv/bin/activate.fish  # or activate, activate.bat on Windows
    ```
 
-2. **Create Superuser** (for admin access):
+3. **Create Superuser** (for admin access):
    ```bash
    python manage.py createsuperuser
    ```
 
-3. **Run Development Server**:
+4. **Run Development Server**:
    ```bash
    python manage.py runserver
    ```
 
-4. **Access the Application**:
+5. **Access the Application**:
    - Home Page: http://127.0.0.1:8000/
    - Admin Panel: http://127.0.0.1:8000/admin/
 

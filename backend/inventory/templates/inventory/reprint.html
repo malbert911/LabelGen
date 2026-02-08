@@ -1,0 +1,195 @@
+{% extends "inventory/base.html" %}
+
+{% block title %}Serial Number Reprint - LabelGen{% endblock %}
+
+{% block content %}
+<h1 class="title">
+    <span class="icon-text">
+        <span class="icon"><i class="fas fa-print"></i></span>
+        <span>Serial Number Reprint</span>
+    </span>
+</h1>
+<p class="subtitle">Look up and reprint inventory labels</p>
+
+<div class="columns">
+    <div class="column is-6 is-offset-3">
+        <div class="box">
+            <h2 class="title is-4">Search Serial Number</h2>
+            
+            <div class="field">
+                <label class="label">Serial Number</label>
+                <div class="control has-icons-left">
+                    <input type="text" 
+                           class="input is-large scan-input" 
+                           id="serialInput"
+                           placeholder="Scan or enter serial number..."
+                           autocomplete="off"
+                           autofocus>
+                    <span class="icon is-left">
+                        <i class="fas fa-barcode"></i>
+                    </span>
+                </div>
+            </div>
+            
+            <button class="button is-info is-fullwidth is-large" id="searchBtn">
+                <span class="icon"><i class="fas fa-search"></i></span>
+                <span>Search</span>
+            </button>
+        </div>
+        
+        <!-- Result Display -->
+        <div id="resultBox" style="display: none;">
+            <div class="box has-background-success-light">
+                <h3 class="title is-5">
+                    <span class="icon-text">
+                        <span class="icon has-text-success"><i class="fas fa-check-circle"></i></span>
+                        <span>Record Found</span>
+                    </span>
+                </h3>
+                
+                <table class="table is-fullwidth">
+                    <tbody>
+                        <tr>
+                            <th>Serial Number:</th>
+                            <td class="is-family-monospace has-text-weight-bold is-size-4" id="displaySerial"></td>
+                        </tr>
+                        <tr>
+                            <th>Part Number:</th>
+                            <td class="is-family-monospace" id="displayPart"></td>
+                        </tr>
+                        <tr>
+                            <th>UPC:</th>
+                            <td class="is-family-monospace" id="displayUPC"></td>
+                        </tr>
+                        <tr>
+                            <th>Created:</th>
+                            <td id="displayCreated"></td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <button class="button is-primary is-large is-fullwidth" id="reprintBtn">
+                    <span class="icon"><i class="fas fa-print"></i></span>
+                    <span>Reprint Inventory Label</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reprint History -->
+<div class="box mt-5" id="historyBox" style="display: none;">
+    <h2 class="title is-5">Recent Reprints</h2>
+    <table class="table is-fullwidth is-striped is-hoverable">
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Serial Number</th>
+                <th>Part Number</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="historyBody">
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const reprintHistory = [];
+
+document.getElementById('serialInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        searchSerial();
+    }
+});
+
+document.getElementById('searchBtn').addEventListener('click', searchSerial);
+
+async function searchSerial() {
+    const serial = document.getElementById('serialInput').value.trim();
+    if (!serial) {
+        showNotification('Please enter a serial number', 'warning');
+        return;
+    }
+    
+    const btn = document.getElementById('searchBtn');
+    btn.classList.add('is-loading');
+    
+    try {
+        const response = await fetch(`/api/lookup-serial/?serial=${encodeURIComponent(serial)}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            displayResult(result.data);
+            showNotification('✓ Serial number found!', 'success');
+        } else {
+            showNotification(`✗ ${result.error}`, 'danger');
+            document.getElementById('resultBox').style.display = 'none';
+        }
+    } catch (error) {
+        showNotification(`✗ Error: ${error.message}`, 'danger');
+    } finally {
+        btn.classList.remove('is-loading');
+    }
+}
+
+function displayResult(data) {
+    document.getElementById('displaySerial').textContent = data.serial_number;
+    document.getElementById('displayPart').textContent = data.part_number;
+    document.getElementById('displayUPC').textContent = data.upc || 'N/A';
+    document.getElementById('displayCreated').textContent = new Date(data.created_at).toLocaleString();
+    document.getElementById('resultBox').style.display = 'block';
+}
+
+document.getElementById('reprintBtn').addEventListener('click', function() {
+    const serial = document.getElementById('displaySerial').textContent;
+    const part = document.getElementById('displayPart').textContent;
+    reprintLabel(serial, part);
+});
+
+function reprintLabel(serial, part) {
+    // Add to history
+    reprintHistory.unshift({
+        time: new Date().toLocaleTimeString(),
+        serial: serial,
+        part: part
+    });
+    
+    if (reprintHistory.length > 10) reprintHistory.pop();
+    
+    updateHistoryTable();
+    
+    // TODO: Integration with Go bridge in Phase 5
+    showNotification(`📋 Reprint command for serial ${serial} (Go bridge integration coming in Phase 5)`, 'info');
+    console.log('Reprint label for:', serial);
+    
+    // Clear and refocus
+    document.getElementById('serialInput').value = '';
+    document.getElementById('serialInput').focus();
+    document.getElementById('resultBox').style.display = 'none';
+}
+
+function updateHistoryTable() {
+    const tbody = document.getElementById('historyBody');
+    tbody.innerHTML = reprintHistory.map((item, idx) => `
+        <tr>
+            <td>${item.time}</td>
+            <td class="is-family-monospace">${item.serial}</td>
+            <td class="is-family-monospace">${item.part}</td>
+            <td>
+                <button class="button is-small is-primary" onclick="reprintLabel('${item.serial}', '${item.part}')">
+                    <span class="icon is-small"><i class="fas fa-redo"></i></span>
+                    <span>Reprint</span>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+    
+    document.getElementById('historyBox').style.display = 'block';
+}
+</script>
+{% endblock %}

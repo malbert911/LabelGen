@@ -1,0 +1,342 @@
+{% extends "inventory/base.html" %}
+
+{% block title %}Bulk Serial Generation - LabelGen{% endblock %}
+
+{% block content %}
+<div class="columns">
+    <div class="column">
+        <h1 class="title">
+            <span class="icon-text">
+                <span class="icon"><i class="fas fa-barcode"></i></span>
+                <span>Bulk Serial Number Generation</span>
+            </span>
+        </h1>
+        <p class="subtitle">Scan part numbers and quantities to generate serial numbers</p>
+    </div>
+    <div class="column is-narrow">
+        <div class="box has-background-info-light">
+            <p class="has-text-weight-bold">Next Serial:</p>
+            <p class="is-size-4 is-family-monospace">{{ sample_serial }}</p>
+        </div>
+    </div>
+</div>
+
+<!-- Scanning Input Table -->
+<div class="box">
+    <h2 class="title is-4">Scan Items</h2>
+    <p class="mb-4">
+        <span class="tag is-info is-light">
+            <span class="icon"><i class="fas fa-info-circle"></i></span>
+            <span>Scan alternating: Part Number → Quantity → Part Number → Quantity</span>
+        </span>
+    </p>
+    
+    <table class="table is-fullwidth is-striped" id="scanTable">
+        <thead>
+            <tr>
+                <th width="10%">#</th>
+                <th width="40%">Part Number</th>
+                <th width="20%">Quantity</th>
+                <th width="30%">Serial Range (Preview)</th>
+            </tr>
+        </thead>
+        <tbody id="scanTableBody">
+            <!-- Rows will be added dynamically -->
+            <tr data-row="0">
+                <td>1</td>
+                <td>
+                    <input type="text" 
+                           class="input scan-input part-input" 
+                           data-row="0"
+                           placeholder="Scan Part Number"
+                           autocomplete="off">
+                </td>
+                <td>
+                    <input type="text" 
+                           class="input scan-input qty-input" 
+                           data-row="0"
+                           placeholder="Scan Quantity"
+                           autocomplete="off">
+                </td>
+                <td class="serial-range" data-row="0">-</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <div class="buttons is-right mt-4">
+        <button class="button is-light" id="clearBtn">
+            <span class="icon"><i class="fas fa-eraser"></i></span>
+            <span>Clear All</span>
+        </button>
+        <button class="button is-primary is-large" id="generateBtn" disabled>
+            <span class="icon"><i class="fas fa-cogs"></i></span>
+            <span>Generate & Print Labels</span>
+        </button>
+    </div>
+</div>
+
+<!-- Results Section -->
+<div id="resultsSection" style="display: none;">
+    <div class="box">
+        <h2 class="title is-4">Generation Results</h2>
+        <div id="resultsContent"></div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentRow = 0;
+let currentSerial = {{ config.current_serial }};
+const digitCount = {{ config.serial_digits }};
+
+function formatSerial(num) {
+    return String(num).padStart(digitCount, '0');
+}
+
+function addNewRow() {
+    currentRow++;
+    const tbody = document.getElementById('scanTableBody');
+    const newRow = document.createElement('tr');
+    newRow.setAttribute('data-row', currentRow);
+    newRow.innerHTML = `
+        <td>${currentRow + 1}</td>
+        <td>
+            <input type="text" 
+                   class="input scan-input part-input" 
+                   data-row="${currentRow}"
+                   placeholder="Scan Part Number"
+                   autocomplete="off">
+        </td>
+        <td>
+            <input type="text" 
+                   class="input scan-input qty-input" 
+                   data-row="${currentRow}"
+                   placeholder="Scan Quantity"
+                   autocomplete="off">
+        </td>
+        <td class="serial-range" data-row="${currentRow}">-</td>
+    `;
+    tbody.appendChild(newRow);
+    attachRowHandlers(newRow);
+}
+
+function updateSerialRange(row) {
+    const partInput = document.querySelector(`.part-input[data-row="${row}"]`);
+    const qtyInput = document.querySelector(`.qty-input[data-row="${row}"]`);
+    const rangeCell = document.querySelector(`.serial-range[data-row="${row}"]`);
+    
+    const qty = parseInt(qtyInput.value);
+    if (qty > 0) {
+        // Calculate cumulative offset from previous rows
+        let offset = 0;
+        for (let i = 0; i < row; i++) {
+            const prevQty = parseInt(document.querySelector(`.qty-input[data-row="${i}"]`).value);
+            if (prevQty > 0) offset += prevQty;
+        }
+        
+        const start = currentSerial + offset;
+        const end = start + qty - 1;
+        rangeCell.textContent = `${formatSerial(start)} - ${formatSerial(end)}`;
+        rangeCell.classList.add('has-text-success', 'has-text-weight-bold');
+    } else {
+        rangeCell.textContent = '-';
+        rangeCell.classList.remove('has-text-success', 'has-text-weight-bold');
+    }
+}
+
+function checkGenerateButton() {
+    const allInputs = document.querySelectorAll('.part-input, .qty-input');
+    let hasData = false;
+    
+    for (let input of allInputs) {
+        if (input.value.trim()) {
+            hasData = true;
+            break;
+        }
+    }
+    
+    document.getElementById('generateBtn').disabled = !hasData;
+}
+
+function attachRowHandlers(row) {
+    const rowNum = parseInt(row.getAttribute('data-row'));
+    const partInput = row.querySelector('.part-input');
+    const qtyInput = row.querySelector('.qty-input');
+    
+    partInput.addEventListener('input', function(e) {
+        if (e.target.value.includes('\n') || e.target.value.includes('\t')) {
+            e.target.value = e.target.value.replace(/[\n\t]/g, '');
+            qtyInput.focus();
+        }
+        checkGenerateButton();
+    });
+    
+    partInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === 'Tab') {
+            e.preventDefault();
+            qtyInput.focus();
+        }
+    });
+    
+    qtyInput.addEventListener('input', function(e) {
+        if (e.target.value.includes('\n') || e.target.value.includes('\t')) {
+            e.target.value = e.target.value.replace(/[\n\t]/g, '');
+        }
+        updateSerialRange(rowNum);
+        checkGenerateButton();
+        
+    });
+    
+    qtyInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === 'Tab') {
+            e.preventDefault();
+            updateSerialRange(rowNum);
+            addNewRow();
+
+            const nextRow = rowNum + 1;
+            let nextPartInput = document.querySelector(`.part-input[data-row="${nextRow}"]`);
+            if (!nextPartInput) {
+                
+                // Wait for DOM update
+                requestAnimationFrame(() => {
+                    nextPartInput = document.querySelector(`.part-input[data-row="${nextRow}"]`);
+                    if (nextPartInput) {
+                        nextPartInput.focus();
+                    }
+                });
+            } else {
+                nextPartInput.focus();
+            }
+        }
+    });
+}
+
+// Initialize handlers for existing rows
+document.querySelectorAll('tr[data-row]').forEach(attachRowHandlers);
+
+// Auto-focus first input on page load
+window.addEventListener('DOMContentLoaded', function() {
+    document.querySelector('.part-input[data-row="0"]').focus();
+});
+
+// Clear button
+document.getElementById('clearBtn').addEventListener('click', function() {
+    if (confirm('Clear all scanned data?')) {
+        location.reload();
+    }
+});
+
+// Generate button
+document.getElementById('generateBtn').addEventListener('click', async function() {
+    const btn = this;
+    btn.classList.add('is-loading');
+    btn.disabled = true;
+    
+    // Collect all pairs
+    const pairs = [];
+    document.querySelectorAll('tr[data-row]').forEach(row => {
+        const rowNum = row.getAttribute('data-row');
+        const partInput = document.querySelector(`.part-input[data-row="${rowNum}"]`);
+        const qtyInput = document.querySelector(`.qty-input[data-row="${rowNum}"]`);
+        
+        if (partInput.value.trim() && qtyInput.value.trim()) {
+            pairs.push({
+                part_number: partInput.value.trim(),
+                quantity: qtyInput.value.trim()
+            });
+        }
+    });
+    
+    try {
+        const response = await fetch('/api/process-bulk-scans/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ pairs })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            displayResults(result.data);
+            showNotification(`✅ Generated ${result.data.total_serials} serial numbers!`, 'success');
+        } else {
+            showNotification(`❌ Error: ${result.error}`, 'danger');
+        }
+    } catch (error) {
+        showNotification(`❌ Error: ${error.message}`, 'danger');
+    } finally {
+        btn.classList.remove('is-loading');
+        btn.disabled = false;
+    }
+});
+
+function displayResults(data) {
+    const resultsSection = document.getElementById('resultsSection');
+    const resultsContent = document.getElementById('resultsContent');
+    
+    let html = `
+        <div class="notification is-success is-light">
+            <p class="has-text-weight-bold">
+                Successfully generated ${data.total_serials} serial numbers across ${data.success_count} part(s)
+            </p>
+        </div>
+        <table class="table is-fullwidth is-striped">
+            <thead>
+                <tr>
+                    <th>Part Number</th>
+                    <th>Quantity</th>
+                    <th>Serial Range</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    data.results.forEach(result => {
+        if (result.success) {
+            html += `
+                <tr class="has-background-success-light">
+                    <td><strong>${result.part_number}</strong></td>
+                    <td>${result.quantity}</td>
+                    <td class="is-family-monospace">${result.serial_range}</td>
+                    <td><span class="tag is-success">✓ Generated</span></td>
+                </tr>
+            `;
+        } else {
+            html += `
+                <tr class="has-background-danger-light">
+                    <td><strong>${result.part_number}</strong></td>
+                    <td>${result.quantity || 'N/A'}</td>
+                    <td>-</td>
+                    <td><span class="tag is-danger">✗ ${result.error}</span></td>
+                </tr>
+            `;
+        }
+    });
+    
+    html += `
+            </tbody>
+        </table>
+        <div class="buttons">
+            <button class="button is-primary" onclick="location.reload()">
+                <span class="icon"><i class="fas fa-plus"></i></span>
+                <span>Generate More</span>
+            </button>
+            <button class="button is-link" onclick="window.print()">
+                <span class="icon"><i class="fas fa-print"></i></span>
+                <span>Print Labels (Browser Print)</span>
+            </button>
+        </div>
+    `;
+    
+    resultsContent.innerHTML = html;
+    resultsSection.style.display = 'block';
+    resultsSection.scrollIntoView({ behavior: 'smooth' });
+}
+</script>
+{% endblock %}

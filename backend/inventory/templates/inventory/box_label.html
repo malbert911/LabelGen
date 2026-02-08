@@ -1,0 +1,198 @@
+{% extends "inventory/base.html" %}
+
+{% block title %}Box Label Printing - LabelGen{% endblock %}
+
+{% block content %}
+<h1 class="title">
+    <span class="icon-text">
+        <span class="icon"><i class="fas fa-box"></i></span>
+        <span>Box Label Printing (Shipping)</span>
+    </span>
+</h1>
+<p class="subtitle">Scan a serial number to generate shipping labels</p>
+
+<div class="columns">
+    <div class="column is-6">
+        <div class="box">
+            <h2 class="title is-4">Scan Serial Number</h2>
+            
+            <div class="field">
+                <div class="control has-icons-left is-large">
+                    <input type="text" 
+                           class="input is-large scan-input" 
+                           id="serialInput"
+                           placeholder="Scan or enter serial number..."
+                           autocomplete="off"
+                           autofocus>
+                    <span class="icon is-left">
+                        <i class="fas fa-barcode"></i>
+                    </span>
+                </div>
+            </div>
+            
+            <button class="button is-primary is-fullwidth is-large mt-3" id="lookupBtn">
+                <span class="icon"><i class="fas fa-search"></i></span>
+                <span>Lookup</span>
+            </button>
+        </div>
+    </div>
+    
+    <div class="column is-6">
+        <div id="resultCard" style="display: none;">
+            <div class="card">
+                <div class="card-header has-background-success-light">
+                    <p class="card-header-title">
+                        <span class="icon"><i class="fas fa-check-circle"></i></span>
+                        <span>Serial Found</span>
+                    </p>
+                </div>
+                <div class="card-content">
+                    <table class="table is-fullwidth">
+                        <tbody>
+                            <tr>
+                                <th>Serial Number:</th>
+                                <td class="is-family-monospace" id="displaySerial"></td>
+                            </tr>
+                            <tr>
+                                <th>Part Number:</th>
+                                <td class="is-family-monospace" id="displayPart"></td>
+                            </tr>
+                            <tr>
+                                <th>UPC:</th>
+                                <td class="is-family-monospace" id="displayUPC"></td>
+                            </tr>
+                            <tr>
+                                <th>Created:</th>
+                                <td id="displayCreated"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <div class="buttons">
+                        <button class="button is-primary is-fullwidth" id="printBoxBtn">
+                            <span class="icon"><i class="fas fa-print"></i></span>
+                            <span>Print Box Label</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Scans -->
+<div class="box mt-5" id="recentBox" style="display: none;">
+    <h2 class="title is-5">Recent Scans</h2>
+    <table class="table is-fullwidth is-striped is-hoverable">
+        <thead>
+            <tr>
+                <th>Serial</th>
+                <th>Part Number</th>
+                <th>UPC</th>
+                <th>Time</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="recentScansBody">
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const recentScans = [];
+
+document.getElementById('serialInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        lookupSerial();
+    }
+});
+
+document.getElementById('lookupBtn').addEventListener('click', lookupSerial);
+
+async function lookupSerial() {
+    const serial = document.getElementById('serialInput').value.trim();
+    if (!serial) {
+        showNotification('Please enter a serial number', 'warning');
+        return;
+    }
+    
+    const btn = document.getElementById('lookupBtn');
+    btn.classList.add('is-loading');
+    
+    try {
+        const response = await fetch(`/api/lookup-serial/?serial=${encodeURIComponent(serial)}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            displayResult(result.data);
+            addToRecent(result.data);
+            showNotification('✓ Serial number found!', 'success');
+            document.getElementById('serialInput').value = '';
+            document.getElementById('serialInput').focus();
+        } else {
+            showNotification(`✗ ${result.error}`, 'danger');
+            document.getElementById('resultCard').style.display = 'none';
+        }
+    } catch (error) {
+        showNotification(`✗ Error: ${error.message}`, 'danger');
+    } finally {
+        btn.classList.remove('is-loading');
+    }
+}
+
+function displayResult(data) {
+    document.getElementById('displaySerial').textContent = data.serial_number;
+    document.getElementById('displayPart').textContent = data.part_number;
+    document.getElementById('displayUPC').textContent = data.upc || 'N/A';
+    document.getElementById('displayCreated').textContent = new Date(data.created_at).toLocaleString();
+    document.getElementById('resultCard').style.display = 'block';
+}
+
+function addToRecent(data) {
+    // Add to front of array
+    recentScans.unshift({
+        ...data,
+        scanned_at: new Date().toLocaleTimeString()
+    });
+    
+    // Keep only last 10
+    if (recentScans.length > 10) recentScans.pop();
+    
+    updateRecentTable();
+}
+
+function updateRecentTable() {
+    const tbody = document.getElementById('recentScansBody');
+    tbody.innerHTML = recentScans.map((scan, idx) => `
+        <tr>
+            <td class="is-family-monospace">${scan.serial_number}</td>
+            <td class="is-family-monospace">${scan.part_number}</td>
+            <td class="is-family-monospace">${scan.upc || 'N/A'}</td>
+            <td>${scan.scanned_at}</td>
+            <td>
+                <button class="button is-small is-primary" onclick="printBox('${scan.serial_number}')">
+                    <span class="icon is-small"><i class="fas fa-print"></i></span>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+    
+    document.getElementById('recentBox').style.display = 'block';
+}
+
+document.getElementById('printBoxBtn').addEventListener('click', function() {
+    const serial = document.getElementById('displaySerial').textContent;
+    printBox(serial);
+});
+
+function printBox(serial) {
+    // TODO: Integration with Go bridge in Phase 5
+    showNotification(`📋 Print command for serial ${serial} (Go bridge integration coming in Phase 5)`, 'info');
+    console.log('Print box label for:', serial);
+}
+</script>
+{% endblock %}

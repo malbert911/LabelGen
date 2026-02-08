@@ -25,8 +25,9 @@
                     </span>
                 </h3>
                 <p class="mb-4">Scan part numbers and quantities to generate sequential serial numbers.</p>
-                <a href="#" class="button is-primary is-fullwidth" disabled>
-                    Coming Soon
+                <a href="{% url 'inventory:bulk_generate' %}" class="button is-primary is-fullwidth">
+                    <span class="icon"><i class="fas fa-arrow-right"></i></span>
+                    <span>Start Scanning</span>
                 </a>
             </div>
         </div>
@@ -40,8 +41,9 @@
                     </span>
                 </h3>
                 <p class="mb-4">Scan a serial number to print shipping box labels with part and UPC info.</p>
-                <a href="#" class="button is-link is-fullwidth" disabled>
-                    Coming Soon
+                <a href="{% url 'inventory:box_label' %}" class="button is-link is-fullwidth">
+                    <span class="icon"><i class="fas fa-arrow-right"></i></span>
+                    <span>Open Scanner</span>
                 </a>
             </div>
         </div>
@@ -55,8 +57,9 @@
                     </span>
                 </h3>
                 <p class="mb-4">Look up and reprint inventory labels for existing serial numbers.</p>
-                <a href="#" class="button is-info is-fullwidth" disabled>
-                    Coming Soon
+                <a href="{% url 'inventory:reprint' %}" class="button is-info is-fullwidth">
+                    <span class="icon"><i class="fas fa-arrow-right"></i></span>
+                    <span>Search Serial</span>
                 </a>
             </div>
         </div>
@@ -90,8 +93,8 @@
         <li>✅ Migrations applied</li>
     </ul>
     <p class="mt-3">
-        <strong>Next Steps:</strong> Create a superuser with <code>python manage.py createsuperuser</code> 
-        to access the admin panel and configure initial settings.
+        <strong>Phase 2 Complete!</strong> Core business logic and UI pages are now functional.
+        Configure serial number settings in the admin panel.
     </p>
 </div>
 {% endblock %}
