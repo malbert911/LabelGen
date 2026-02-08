@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}LabelGen{% endblock %}</title>
+    
+    <!-- Bulma CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.0/css/bulma.min.css">
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    {% block extra_css %}{% endblock %}
+    
+    <style>
+        /* Custom styles for warehouse/industrial use */
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .main-content {
+            flex: 1;
+        }
+        
+        /* Large scannable inputs */
+        .scan-input {
+            font-size: 1.5rem;
+            height: 3.5rem;
+            font-family: monospace;
+        }
+        
+        /* Table styling for better readability */
+        .table th {
+            background-color: hsl(0, 0%, 96%);
+        }
+        
+        /* Notification positioning */
+        .notification-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            max-width: 400px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar is-dark" role="navigation" aria-label="main navigation">
+        <div class="navbar-brand">
+            <a class="navbar-item" href="/">
+                <strong>🏷️ LabelGen</strong>
+            </a>
+        </div>
+
+        <div class="navbar-menu">
+            <div class="navbar-start">
+                <a class="navbar-item" href="{% url 'admin:index' %}">
+                    <span class="icon"><i class="fas fa-cog"></i></span>
+                    <span>Admin</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <section class="section main-content">
+        <div class="container">
+            {% block content %}{% endblock %}
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="content has-text-centered">
+            <p>
+                <strong>LabelGen</strong> - Inventory Management & Label Printing System
+            </p>
+        </div>
+    </footer>
+
+    <!-- Notification Container -->
+    <div class="notification-container" id="notificationContainer"></div>
+
+    {% block extra_js %}{% endblock %}
+    
+    <script>
+        // Helper function to show notifications
+        function showNotification(message, type = 'info') {
+            const container = document.getElementById('notificationContainer');
+            const notification = document.createElement('div');
+            notification.className = `notification is-${type}`;
+            notification.innerHTML = `
+                <button class="delete"></button>
+                ${message}
+            `;
+            
+            container.appendChild(notification);
+            
+            // Add delete functionality
+            const deleteBtn = notification.querySelector('.delete');
+            deleteBtn.addEventListener('click', () => {
+                notification.remove();
+            });
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                notification.remove();
+            }, 5000);
+        }
+        
+        // Audio feedback for errors (optional - can be enabled later)
+        function playErrorSound() {
+            // Add beep sound for scanner errors if needed
+            // const audio = new Audio('/static/inventory/error.mp3');
+            // audio.play();
+        }
+    </script>
+</body>
+</html>

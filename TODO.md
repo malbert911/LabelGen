@@ -1,14 +1,16 @@
 # LabelGen Project Roadmap
 
-## Phase 1: Core Foundation 🏗️
-- [ ] Initialize Django project and app structure
-- [ ] Set up Bulma.io CSS framework in base templates
-- [ ] Define Models:
-  - [ ] `Product` (PartNumber PK, UPC nullable)
-  - [ ] `SerialNumber` (SerialNumber PK, PartNumber FK, UPC denormalized, CreatedAt)
-  - [ ] `Config` (for serial start position and digit count)
-- [ ] Create migrations
-- [ ] Set up Django admin for Product and Config management
+# LabelGen Project Roadmap
+
+## Phase 1: Core Foundation 🏗️ ✅ COMPLETED
+- [x] Initialize Django project and app structure
+- [x] Set up Bulma.io CSS framework in base templates
+- [x] Define Models:
+  - [x] `Product` (PartNumber PK, UPC nullable)
+  - [x] `SerialNumber` (SerialNumber PK, PartNumber FK, UPC denormalized, CreatedAt)
+  - [x] `Config` (for serial start position and digit count)
+- [x] Create migrations
+- [x] Set up Django admin for Product and Config management
 
 ## Phase 2: Core Business Logic 🧠
 - [ ] Implement configurable serial number generator:
