@@ -5,31 +5,45 @@ Django-based inventory management and label printing system for warehouse operat
 ## Overview
 
 LabelGen is a warehouse scanning system that converts bulk part number scans into sequential serial numbers and prints labels. Built as a monorepo with:
-- **Django 6.x backend** (Python 3.14) - Web UI and database  
-- **Go printer bridge** - Local service for printer communication
+- **Django 6.x backend** (Python 3.14) - Central web server for data & ZPL generation  
+- **Go printer bridge** - Local service on each workstation for printer communication
+
+**Critical Architecture**: Browser orchestrates between Django (central) and Bridge (local):
+1. Browser → Django: Get data, generate ZPL strings
+2. Browser → Bridge (localhost:5001): Discover printers, send ZPL to print
+3. Django never calls Bridge - they run on different machines!
 
 ## Features
 
-### ✅ Completed (Phases 1-3)
+### ✅ Completed (Phases 1-4)
 - **Bulk Serial Generation**: Hands-free scanning interface that generates sequential serial numbers
 - **Box Label Printing**: Scan serial numbers to print shipping labels
 - **Serial Reprint**: Look up and reprint existing serial number labels
-- **Admin Interface**: Password-protected UPC management with CSV upload and manual editing
+- **Admin Interface**: Password-protected UPC management with CSV upload, manual editing, and ZPL template editor
 - **Dark Mode**: Auto-detecting theme with manual toggle
 - **Printer Settings**: Browser-based printer selection (localStorage per workstation)
-- **Printer Bridge Status**: Real-time connection indicator in navbar
+- **Printer Bridge**: Fully functional cross-platform service
+  - Windows: PowerShell Get-Printer + wmic fallback for printer discovery
+  - macOS/Linux: CUPS lpstat for printer discovery
+  - Direct raw ZPL printing to USB/network printers
+  - Unique printer IDs handle duplicate models
+- **ZPL Label Templates**: Editable templates with live preview
+  - Serial labels (4x2") with Code 128 barcodes
+  - Box labels (4x3") with UPC-A barcodes
+  - Variable substitution: {{serial}}, {{part}}, {{upc_full}}, {{upc_11_digits}}
+  - Labelary API integration for preview rendering
 
-### 🚧 In Progress (Phase 4)
-- **Go Printer Bridge**: Stubbed service running on localhost:5001
-  - `/health` - Health check endpoint
-  - `/printers` - List available printers (2 stubbed Zebra printers)
-  - `/print` - Accept print jobs (stubbed)
+### 🚧 In Progress (Phase 5)
+- **Print Button Integration**: Adding print functionality to UI pages
+  - Printer dropdown selection
+  - "Print" buttons on bulk generate, box label, reprint pages
+  - Progress indicators for batch printing
 
-### 📋 Upcoming (Phases 5-6)
-- ZPL label template engine
-- Real printer discovery (USB/network)
-- Print integration in UI pages
-- Testing and polish
+### 📋 Upcoming (Phase 6)
+- Testing with actual Datamax O'Neil E-4204B printer
+- Error handling and edge cases
+- Windows deployment guide
+- Final polish
 
 ## Quick Start
 
@@ -76,9 +90,15 @@ go mod download
 
 # Run the bridge
 go run main.go
+
+# Or build a binary
+go build -o labelgen-bridge
+./labelgen-bridge  # or labelgen-bridge.exe on Windows
 ```
 
 Bridge will be running at http://localhost:5001/
+
+**Note**: The bridge must run on each workstation that has printers. It discovers local USB/network printers and handles raw ZPL printing.
 
 ### Usage
 
@@ -102,6 +122,46 @@ Bridge will be running at http://localhost:5001/
    - Change admin password
 
 ## Architecture
+
+### Critical: Browser Orchestration
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Browser (Workstation)                                      │
+│                                                             │
+│  1. GET /generate/  ────────────┐                          │
+│  2. Fetch ZPL ─────────────────┐│                          │
+│  3. GET /printers ──────┐      ││                          │
+│  4. POST /print ────┐   │      ││                          │
+│                     │   │      ││                          │
+└─────────────────────┼───┼──────┼┼──────────────────────────┘
+                      │   │      ││
+                      │   │      ││
+         ┌────────────┘   │      │└────────────────┐
+         │                │      │                 │
+         ▼                ▼      ▼                 ▼
+┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
+│ Local Bridge     │  │ Django Server    │  │ Django Server    │
+│ (localhost:5001) │  │ (192.168.1.100)  │  │ (192.168.1.100)  │
+│                  │  │                  │  │                  │
+│ • Discover USB   │  │ • Generate ZPL   │  │ • Serve HTML/JS  │
+│   printers       │  │ • Lookup data    │  │                  │
+│ • Send raw ZPL   │  │ • Manage DB      │  │                  │
+│   to printer     │  │                  │  │                  │
+└──────────────────┘  └──────────────────┘  └──────────────────┘
+         │
+         ▼
+┌──────────────────┐
+│ USB Printer      │
+│ (Datamax/Zebra)  │
+└──────────────────┘
+```
+
+**Key Points**:
+- Django runs on central server (one instance for all workstations)
+- Bridge runs locally on each workstation (with printers)
+- Browser makes separate calls to Django (data) and Bridge (printing)
+- Django NEVER calls Bridge - different networks!
 
 ### Monorepo Structure
 ```
@@ -172,42 +232,58 @@ LabelGen/
 - `GET /printer-settings/` - Printer configuration
 
 **API Endpoints**
-- `POST /api/process-bulk-scans/` - Generate serial numbers
-- `GET /api/lookup-serial/?serial=000500` - Look up serial number
+- `POST /api/process-bulk-scans/` - Generate serial numbers from scans
+- `GET /api/lookup-serial/?serial=000500` - Look up serial number data
+- `POST /api/generate-label-zpl/` - **Generate ZPL string** (browser sends to bridge)
+  - Input: serial_number, part_number, upc, label_type ('serial' or 'box')
+  - Output: {success, zpl: "^XA...^XZ", label_type}
+- `POST /api/preview-zpl/` - Preview ZPL via Labelary API (admin only)
 
 **Admin Pages** (password-protected)
 - `GET /admin-login/` - Admin login
-- `GET /admin-upc/` - UPC management
+- `GET /admin-upc/` - UPC management + ZPL template editor
 - `POST /api/admin-upload-csv/` - Bulk UPC upload
 - `POST /api/admin-update-upc/` - Update single UPC
 
 ### Printer Bridge (http://localhost:5001)
 
-- `GET /health` - Health check
-- `GET /printers` - List available printers
-- `POST /print` - Send print job
+- `GET /health` - Health check (returns {status: "healthy"})
+- `GET /printers` - **List available printers**
+  - Windows: Runs PowerShell Get-Printer or wmic
+  - macOS/Linux: Runs lpstat -v and lpstat -p
+  - Returns: {success, printers: [{id, name, type, connection, status, description}]}
+- `POST /print` - **Send ZPL to printer**
+  - Input: {printer_id, label_type, data: {zpl: "..."}}
+  - Returns: {success, message, job_id}
 
 **Example Print Request**:
 ```json
 {
-  "printer_id": "zebra-zd421",
-  "label_type": "inventory_label",
+  "printer_id": "datamax_usb001",
+  "label_type": "serial",
   "data": {
-    "serial_number": "000500",
-    "part_number": "232-9983",
-    "upc": "012345678901"
+    "zpl": "^XA^FO100,50^A0N,30,30^FD000500^FS^XZ"
   }
 }
 ```
 
+**Platform Support**:
+- Windows: Direct write to `\\.\PrinterName` (no drivers needed)
+- macOS/Linux: CUPS `lpr -o raw` command
+
 ## Development Notes
 
-### Current State (Feb 7, 2026)
+### Current State (Feb 9, 2026)
 - Django backend fully functional (Phases 1-3 complete)
-- Go bridge running with stubbed printers
-- Printer settings UI complete
-- Navigation enhanced with status indicators
-- Ready for print integration
+- Go bridge production-ready with real printer discovery and printing (Phase 4 complete)
+- ZPL templates implemented with live preview
+- Ready for UI print button integration (Phase 5)
+
+### Printer Support
+- **Tested**: Datamax O'Neil eClass Mark III E-4204B (via PL-Z/ZPL emulation)
+- **Compatible**: Any ZPL or ZPL-compatible printer (Zebra, Datamax, Sato, TSC, etc.)
+- **Connection**: USB, Network (TCP/IP), Network (WSD)
+- **OS**: Windows (primary), macOS/Linux (development)
 
 ### Next Steps
 See [TODO.md](TODO.md) for detailed roadmap and [AI_CONTEXT.md](AI_CONTEXT.md) for comprehensive technical details.

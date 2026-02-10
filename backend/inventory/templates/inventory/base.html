@@ -413,6 +413,271 @@
             // const audio = new Audio('/static/inventory/error.mp3');
             // audio.play();
         }
+        
+        // ============================================================================
+        // PRINTER BRIDGE INTEGRATION
+        // ============================================================================
+        // Orchestrates between Django (central ZPL generation) and Bridge (local printing)
+        const PrinterBridge = {
+            BRIDGE_URL: 'http://localhost:5001',
+            DJANGO_URL: window.location.origin,
+            
+            /**
+             * Fetch available printers from local bridge
+             * @returns {Promise<Array>} Array of printer objects
+             */
+            async getPrinters() {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 5000);
+                    
+                    const response = await fetch(`${this.BRIDGE_URL}/printers`, {
+                        method: 'GET',
+                        signal: controller.signal
+                    });
+                    
+                    clearTimeout(timeoutId);
+                    
+                    if (!response.ok) {
+                        throw new Error(`Bridge returned ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (!data.success) {
+                        // Still return printers even if discovery had issues
+                        console.warn('Printer discovery had issues:', data.error);
+                    }
+                    
+                    return data.printers || [];
+                } catch (error) {
+                    console.error('Failed to fetch printers:', error);
+                    
+                    let errorMsg = 'Cannot connect to printer bridge.';
+                    if (error.name === 'AbortError') {
+                        errorMsg += ' Timeout - is the bridge running on this workstation?';
+                    } else if (error.message.includes('Failed to fetch')) {
+                        errorMsg += ' Make sure the bridge is running: cd bridge && go run main.go';
+                    } else {
+                        errorMsg += ' ' + error.message;
+                    }
+                    
+                    showNotification(errorMsg, 'danger');
+                    throw error;
+                }
+            },
+            
+            /**
+             * Get localStorage key for printer selection
+             * @param {string} labelType - 'serial' or 'box'
+             * @returns {string} localStorage key
+             */
+            _getStorageKey(labelType) {
+                // Include Django URL in key for multi-server support
+                return `labelgen_${labelType}_printer_${this.DJANGO_URL}`;
+            },
+            
+            /**
+             * Get saved printer selection from localStorage
+             * @param {string} labelType - 'serial' or 'box'
+             * @returns {string|null} Printer ID or null
+             */
+            getSelectedPrinter(labelType) {
+                const key = this._getStorageKey(labelType);
+                return localStorage.getItem(key);
+            },
+            
+            /**
+             * Save printer selection to localStorage
+             * @param {string} labelType - 'serial' or 'box'
+             * @param {string} printerId - Printer ID to save
+             */
+            setSelectedPrinter(labelType, printerId) {
+                const key = this._getStorageKey(labelType);
+                localStorage.setItem(key, printerId);
+            },
+            
+            /**
+             * Generate ZPL from Django backend
+             * @param {string} labelType - 'serial' or 'box'
+             * @param {Object} data - Label data (serial_number, part_number, upc)
+             * @returns {Promise<string>} ZPL code
+             */
+            async generateZPL(labelType, data) {
+                try {
+                    const response = await fetch(`${this.DJANGO_URL}/api/generate-label-zpl/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this._getCSRFToken()
+                        },
+                        body: JSON.stringify({
+                            label_type: labelType,
+                            ...data
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Django returned ${response.status}`);
+                    }
+                    
+                    const result = await response.json();
+                    
+                    if (!result.success) {
+                        throw new Error(result.error || 'Failed to generate ZPL');
+                    }
+                    
+                    return result.zpl;
+                } catch (error) {
+                    console.error('Failed to generate ZPL:', error);
+                    showNotification(`ZPL generation failed: ${error.message}`, 'danger');
+                    throw error;
+                }
+            },
+            
+            /**
+             * Send ZPL to printer via local bridge
+             * @param {string} printerId - Printer ID
+             * @param {string} zpl - ZPL code to print
+             * @returns {Promise<Object>} Print result
+             */
+            async sendToPrinter(printerId, zpl) {
+                try {
+                    const response = await fetch(`${this.BRIDGE_URL}/print`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            printer_id: printerId,
+                            data: {
+                                zpl: zpl
+                            }
+                        }),
+                        signal: AbortSignal.timeout(10000)
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Bridge returned ${response.status}`);
+                    }
+                    
+                    const result = await response.json();
+                    
+                    if (!result.success) {
+                        throw new Error(result.error || 'Print failed');
+                    }
+                    
+                    return result;
+                } catch (error) {
+                    console.error('Failed to print:', error);
+                    showNotification(`Print failed: ${error.message}`, 'danger');
+                    throw error;
+                }
+            },
+            
+            /**
+             * Complete print workflow: Generate ZPL + Print
+             * @param {string} labelType - 'serial' or 'box'
+             * @param {Object} data - Label data (serial_number, part_number, upc)
+             * @param {string} printerId - Optional printer ID (defaults to saved selection)
+             * @param {boolean} silent - If true, don't show success notification (for batch operations)
+             * @returns {Promise<Object>} Print result
+             */
+            async printLabel(labelType, data, printerId = null, silent = false) {
+                // Use provided printer or get saved selection
+                const selectedPrinter = printerId || this.getSelectedPrinter(labelType);
+                
+                if (!selectedPrinter) {
+                    const msg = `No printer selected for ${labelType} labels. Please select a printer in Printer Settings.`;
+                    showNotification(msg, 'warning');
+                    throw new Error(msg);
+                }
+                
+                try {
+                    // Step 1: Generate ZPL from Django
+                    const zpl = await this.generateZPL(labelType, data);
+                    
+                    // Step 2: Send to printer via bridge
+                    const result = await this.sendToPrinter(selectedPrinter, zpl);
+                    
+                    if (!silent) {
+                        showNotification(`Label printed successfully!`, 'success');
+                    }
+                    return result;
+                } catch (error) {
+                    // Error already shown in sub-functions
+                    throw error;
+                }
+            },
+            
+            /**
+             * Batch print multiple labels
+             * @param {string} labelType - 'serial' or 'box'
+             * @param {Array<Object>} dataArray - Array of label data objects
+             * @param {string} printerId - Optional printer ID
+             * @param {Function} progressCallback - Called after each print with (current, total)
+             * @returns {Promise<Object>} Summary with success/failure counts
+             */
+            async printBatch(labelType, dataArray, printerId = null, progressCallback = null) {
+                const selectedPrinter = printerId || this.getSelectedPrinter(labelType);
+                
+                if (!selectedPrinter) {
+                    const msg = `No printer selected for ${labelType} labels.`;
+                    showNotification(msg, 'warning');
+                    throw new Error(msg);
+                }
+                
+                let successful = 0;
+                let failed = 0;
+                const errors = [];
+                
+                for (let i = 0; i < dataArray.length; i++) {
+                    try {
+                        await this.printLabel(labelType, dataArray[i], selectedPrinter, true); // silent mode
+                        successful++;
+                    } catch (error) {
+                        failed++;
+                        errors.push({ index: i, data: dataArray[i], error: error.message });
+                    }
+                    
+                    if (progressCallback) {
+                        progressCallback(i + 1, dataArray.length, successful, failed);
+                    }
+                }
+                
+                const summary = {
+                    total: dataArray.length,
+                    successful,
+                    failed,
+                    errors
+                };
+                
+                return summary;
+            },
+            
+            /**
+             * Get CSRF token from cookie
+             * @returns {string} CSRF token
+             */
+            _getCSRFToken() {
+                const name = 'csrftoken';
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+        };
+        
+        // Make PrinterBridge available globally
+        window.PrinterBridge = PrinterBridge;
     </script>
 </body>
 </html>

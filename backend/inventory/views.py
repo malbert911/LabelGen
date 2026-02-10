@@ -3,9 +3,12 @@ from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_http_methods
 from .services import BulkScanParser, BulkGenerationService, SerialNumberGenerator
 from .models import SerialNumber, Product, Config
-from .forms import AdminLoginForm, ConfigForm, UPCUploadForm, ProductUPCForm, AdminPasswordChangeForm
+from .forms import AdminLoginForm, ConfigForm, UPCUploadForm, ProductUPCForm, AdminPasswordChangeForm, LabelTemplateForm
 import json
 import csv
+import base64
+import urllib.request
+import urllib.error
 
 
 def home(request):
@@ -176,6 +179,17 @@ def admin_upc(request):
             password_updated = True
             password_form = AdminPasswordChangeForm()  # Reset form
     
+    # Handle label template update
+    template_updated = False
+    if request.method == 'POST' and 'update_templates' in request.POST:
+        template_form = LabelTemplateForm(request.POST, instance=config)
+        if template_form.is_valid():
+            template_form.save()
+            template_updated = True
+            config = SerialNumberGenerator.get_config()  # Reload config
+    else:
+        template_form = LabelTemplateForm(instance=config)
+    
     # Handle CSV upload
     upload_form = UPCUploadForm()
     csv_results = None
@@ -187,6 +201,8 @@ def admin_upc(request):
         'config_updated': config_updated,
         'password_form': password_form,
         'password_updated': password_updated,
+        'template_form': template_form,
+        'template_updated': template_updated,
         'products': products,
         'upload_form': upload_form,
         'csv_results': csv_results,
@@ -265,3 +281,130 @@ def admin_download_template(request):
     writer.writerow(['343-0323', ''])
     
     return response
+
+
+@require_http_methods(["POST"])
+def preview_zpl(request):
+    """Preview ZPL label using Labelary API."""
+    if not request.session.get('admin_authenticated'):
+        return JsonResponse({'success': False, 'error': 'Not authenticated'}, status=403)
+    
+    try:
+        data = json.loads(request.body)
+        zpl_code = data.get('zpl', '')
+        label_type = data.get('label_type', 'serial')  # 'serial' or 'box'
+        
+        # Get config to determine label size
+        config = SerialNumberGenerator.get_config()
+        
+        # Get dimensions based on label type
+        if label_type == 'box':
+            width = config.box_label_width
+            height = config.box_label_height
+        else:  # serial
+            width = config.serial_label_width
+            height = config.serial_label_height
+        
+        dpi = config.label_dpi
+        
+        # Convert DPI to DPMM (dots per millimeter) for Labelary API
+        # 203 DPI = 8 DPMM, 300 DPI = 12 DPMM, 600 DPI = 24 DPMM
+        dpi_to_dpmm = {
+            203: '8dpmm',
+            300: '12dpmm',
+            600: '24dpmm'
+        }
+        dpmm = dpi_to_dpmm.get(dpi, '8dpmm')  # Default to 8dpmm if DPI not recognized
+        
+        # Labelary API endpoint: POST http://api.labelary.com/v1/printers/{dpmm}/labels/{width}x{height}/0/
+        url = f'http://api.labelary.com/v1/printers/{dpmm}/labels/{width}x{height}/0/'
+        
+        # Send POST request with ZPL in body
+        req = urllib.request.Request(
+            url,
+            data=zpl_code.encode('utf-8'),
+            headers={
+                'Accept': 'image/png',
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            method='POST'
+        )
+        
+        with urllib.request.urlopen(req, timeout=10) as response:
+            image_data = response.read()
+        
+        # Convert to base64
+        image_base64 = base64.b64encode(image_data).decode('utf-8')
+        
+        return JsonResponse({
+            'success': True,
+            'image': f'data:image/png;base64,{image_base64}'
+        })
+    
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode('utf-8') if e.fp else 'Unknown error'
+        return JsonResponse({
+            'success': False,
+            'error': f'Labelary API error: {e.code} - {error_body}'
+        }, status=400)
+    except urllib.error.URLError as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Network error: {str(e.reason)}'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=400)
+
+
+@require_http_methods(["POST"])
+def generate_label_zpl(request):
+    """Generate ZPL code for a label with actual data."""
+    try:
+        data = json.loads(request.body)
+        label_type = data.get('label_type')  # 'serial' or 'box'
+        serial_number = data.get('serial_number', '')
+        part_number = data.get('part_number', '')
+        upc = data.get('upc', '')
+        
+        config = SerialNumberGenerator.get_config()
+        
+        # Get the appropriate template
+        if label_type == 'serial':
+            zpl_template = config.serial_label_zpl
+        elif label_type == 'box':
+            zpl_template = config.box_label_zpl
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid label_type. Must be "serial" or "box"'
+            }, status=400)
+        
+        # Substitute variables
+        zpl_code = zpl_template.replace('{{serial}}', serial_number)
+        zpl_code = zpl_code.replace('{{part}}', part_number)
+        
+        # Handle UPC variables (both full and 11-digit versions)
+        if upc:
+            upc_full = upc  # Full 12-digit UPC
+            upc_11 = upc[:11] if len(upc) >= 11 else upc  # First 11 digits for UPC-A barcode
+        else:
+            upc_full = ''
+            upc_11 = ''
+        
+        zpl_code = zpl_code.replace('{{upc_full}}', upc_full)
+        zpl_code = zpl_code.replace('{{upc_11_digits}}', upc_11)
+        
+        return JsonResponse({
+            'success': True,
+            'zpl': zpl_code,
+            'label_type': label_type
+        })
+    
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=400)

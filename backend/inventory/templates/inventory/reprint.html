@@ -148,29 +148,48 @@ function displayResult(data) {
 document.getElementById('reprintBtn').addEventListener('click', function() {
     const serial = document.getElementById('displaySerial').textContent;
     const part = document.getElementById('displayPart').textContent;
-    reprintLabel(serial, part);
+    const upc = document.getElementById('displayUPC').textContent;
+    reprintLabel(serial, part, upc !== 'N/A' ? upc : '');
 });
 
-function reprintLabel(serial, part) {
+async function reprintLabel(serial, part, upc = '') {
     // Add to history
     reprintHistory.unshift({
         time: new Date().toLocaleTimeString(),
         serial: serial,
-        part: part
+        part: part,
+        upc: upc
     });
     
     if (reprintHistory.length > 10) reprintHistory.pop();
     
     updateHistoryTable();
     
-    // TODO: Integration with Go bridge in Phase 5
-    showNotification(`📋 Reprint command for serial ${serial} (Go bridge integration coming in Phase 5)`, 'info');
-    console.log('Reprint label for:', serial);
+    // Check if printer is selected
+    const selectedPrinter = PrinterBridge.getSelectedPrinter('serial');
+    if (!selectedPrinter) {
+        showNotification('Please select a serial label printer in Printer Settings first', 'warning');
+        setTimeout(() => {
+            window.location.href = '/printer-settings/';
+        }, 2000);
+        return;
+    }
     
-    // Clear and refocus
-    document.getElementById('serialInput').value = '';
-    document.getElementById('serialInput').focus();
-    document.getElementById('resultBox').style.display = 'none';
+    try {
+        await PrinterBridge.printLabel('serial', {
+            serial_number: serial,
+            part_number: part,
+            upc: upc
+        }, selectedPrinter);
+        
+        // Clear and refocus after successful print
+        document.getElementById('serialInput').value = '';
+        document.getElementById('serialInput').focus();
+        document.getElementById('resultBox').style.display = 'none';
+    } catch (error) {
+        // Error already shown by PrinterBridge
+        console.error('Reprint failed:', error);
+    }
 }
 
 function updateHistoryTable() {
@@ -181,7 +200,7 @@ function updateHistoryTable() {
             <td class="is-family-monospace">${item.serial}</td>
             <td class="is-family-monospace">${item.part}</td>
             <td>
-                <button class="button is-small is-primary" onclick="reprintLabel('${item.serial}', '${item.part}')">
+                <button class="button is-small is-primary" onclick="reprintLabel('${item.serial}', '${item.part}', '${item.upc || ''}')">
                     <span class="icon is-small"><i class="fas fa-redo"></i></span>
                     <span>Reprint</span>
                 </button>

@@ -97,6 +97,68 @@ class Config(models.Model):
         verbose_name="Admin Password",
         help_text="Password for UPC management admin interface"
     )
+    
+    # ZPL Label Templates
+    serial_label_zpl = models.TextField(
+        default="""^XA
+^FO140,30^A0N,25,25^FDNe pas enlever (Garantie)^FS
+^FO140,60^A0N,25,25^FDDo not remove (Warranty)^FS
+^FO250,120^BY2^BCN,70,Y,N,N^FD{{serial}}^FS
+^FO310,210^A0N,30,30^FDSN.# {{serial}}^FS
+^XZ""",
+        verbose_name="Serial Label ZPL Template",
+        help_text="ZPL template for inventory serial number labels. Use {{serial}} for serial number."
+    )
+    
+    box_label_zpl = models.TextField(
+        default="""^XA
+^FO320,30^A0N,35,35^FD{{part}}^FS
+^FO250,80^BY2^BCN,70,Y,N,N^FD{{part}}^FS
+^FO250,170^BY2^BCN,70,Y,N,N^FD{{serial}}^FS
+^FO310,260^A0N,30,30^FDSN.# {{serial}}^FS
+^FO230,320^BY2^BUN,70^FD{{upc_11_digits}}^FS
+^FO260,400^A0N,25,25^FDUPC: {{upc_full}}^FS
+^XZ""",
+        verbose_name="Box Label ZPL Template",
+        help_text="ZPL template for shipping box labels. Use {{part}}, {{serial}}, {{upc_full}}, {{upc_11_digits}} as placeholders."
+    )
+    
+    # Serial Label Dimensions
+    serial_label_width = models.IntegerField(
+        default=4,
+        validators=[MinValueValidator(1)],
+        verbose_name="Serial Label Width (inches)",
+        help_text="Width of serial labels in inches"
+    )
+    
+    serial_label_height = models.IntegerField(
+        default=2,
+        validators=[MinValueValidator(1)],
+        verbose_name="Serial Label Height (inches)",
+        help_text="Height of serial labels in inches"
+    )
+    
+    # Box Label Dimensions
+    box_label_width = models.IntegerField(
+        default=4,
+        validators=[MinValueValidator(1)],
+        verbose_name="Box Label Width (inches)",
+        help_text="Width of box labels in inches"
+    )
+    
+    box_label_height = models.IntegerField(
+        default=3,
+        validators=[MinValueValidator(1)],
+        verbose_name="Box Label Height (inches)",
+        help_text="Height of box labels in inches"
+    )
+    
+    label_dpi = models.IntegerField(
+        default=203,
+        choices=[(203, '203 DPI'), (300, '300 DPI'), (600, '600 DPI')],
+        verbose_name="Printer DPI",
+        help_text="Printer resolution in dots per inch"
+    )
 
     class Meta:
         verbose_name = "Configuration"

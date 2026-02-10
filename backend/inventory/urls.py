@@ -19,4 +19,6 @@ urlpatterns = [
     path('api/admin-upload-csv/', views.admin_upload_csv, name='admin_upload_csv'),
     path('api/admin-update-upc/', views.admin_update_upc, name='admin_update_upc'),
     path('admin-download-template/', views.admin_download_template, name='admin_download_template'),
+    path('api/preview-zpl/', views.preview_zpl, name='preview_zpl'),
+    path('api/generate-label-zpl/', views.generate_label_zpl, name='generate_label_zpl'),
 ]

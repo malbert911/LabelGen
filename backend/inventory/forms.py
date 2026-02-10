@@ -105,6 +105,34 @@ class UPCUploadForm(forms.Form):
         return results, errors
 
 
+class LabelTemplateForm(forms.ModelForm):
+    """Form for editing ZPL label templates."""
+    class Meta:
+        model = Config
+        fields = [
+            'serial_label_zpl', 'serial_label_width', 'serial_label_height',
+            'box_label_zpl', 'box_label_width', 'box_label_height',
+            'label_dpi'
+        ]
+        widgets = {
+            'serial_label_zpl': forms.Textarea(attrs={
+                'class': 'textarea',
+                'rows': 10,
+                'style': 'font-family: monospace; font-size: 12px;'
+            }),
+            'box_label_zpl': forms.Textarea(attrs={
+                'class': 'textarea',
+                'rows': 12,
+                'style': 'font-family: monospace; font-size: 12px;'
+            }),
+            'serial_label_width': forms.NumberInput(attrs={'class': 'input'}),
+            'serial_label_height': forms.NumberInput(attrs={'class': 'input'}),
+            'box_label_width': forms.NumberInput(attrs={'class': 'input'}),
+            'box_label_height': forms.NumberInput(attrs={'class': 'input'}),
+            'label_dpi': forms.Select(attrs={'class': 'select'}),
+        }
+
+
 class ProductUPCForm(forms.ModelForm):
     class Meta:
         model = Product

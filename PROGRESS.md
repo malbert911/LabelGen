@@ -1,18 +1,23 @@
-# Phase 2 & 3 Complete! 🎉
+# Phases 1-4 Complete! 🎉
 
 ## What's Been Implemented
 
 ### ✅ Monorepo Structure
 ```
 LabelGen/
-├── backend/          # Django application
+├── backend/          # Django application (central server)
 │   ├── inventory/    # Main app
 │   ├── labelgen/     # Project settings
-│   ├── venv/         # Virtual environment
 │   └── manage.py
-├── bridge/           # Go printer bridge (placeholder for Phase 4)
-└── [documentation]
+├── bridge/           # Go printer bridge (runs on workstations)
+│   ├── main.go       # 432 lines, production-ready
+│   └── go.mod
+└── venv/             # Python virtual environment
 ```
+
+**Architecture**: Browser orchestrates between:
+1. Django (central server) - Generate ZPL, manage data
+2. Bridge (local workstation) - Discover printers, send ZPL, print
 
 ### ✅ Core Business Logic (Phase 2)
 
@@ -73,6 +78,46 @@ LabelGen/
 
 - `POST /api/process-bulk-scans/`: Process bulk part/qty pairs and generate serials
 - `GET /api/lookup-serial/?serial=<serial>`: Look up serial number details
+- `POST /api/generate-label-zpl/`: **Generate ZPL string for printing** (NEW!)
+  - Input: serial_number, part_number, upc, label_type
+  - Output: {success: true, zpl: "^XA...^XZ", label_type}
+- `POST /api/preview-zpl/`: Preview ZPL via Labelary API (admin only)
+
+### 🖨️ Printer Bridge (Phase 4 - NEW!)
+
+**Go Service** (localhost:5001):
+- `GET /health`: Health check
+- `GET /printers`: **Real printer discovery**
+  - Windows: PowerShell Get-Printer + wmic fallback
+  - macOS/Linux: CUPS lpstat
+  - Returns available printers with unique IDs
+- `POST /print`: **Real ZPL printing**
+  - Windows: Direct write to `\\.\PrinterName`
+  - macOS/Linux: CUPS `lpr -o raw`
+  - Accepts ZPL in data.zpl field
+
+**Features**:
+- Cross-platform (Windows primary, macOS/Linux fallback)
+- Detects USB, Network (TCP/IP), Network (WSD) printers
+- Identifies thermal printers by driver
+- Unique IDs handle duplicate printer models
+- No printer drivers needed - raw ZPL passthrough
+
+### 📋 ZPL Label Templates (Phase 4.5 - NEW!)
+
+**Config Model Extensions**:
+- `serial_label_zpl` - 4x2" template for serial labels
+- `box_label_zpl` - 4x3" template for box labels  
+- Label dimensions (width/height in inches)
+- DPI selector (203/300/600)
+
+**Features**:
+- Editable templates in admin interface
+- Live preview via Labelary API (ZPL → PNG)
+- Variable substitution: {{serial}}, {{part}}, {{upc_full}}, {{upc_11_digits}}
+- Code 128 barcodes for serial numbers
+- UPC-A barcodes (11-digit format) for products
+- Centered layouts with proper positioning
 
 ### ⚙️ Configuration
 
@@ -108,17 +153,20 @@ LabelGen/
 4. **Test Box Label**:
    - Go to http://127.0.0.1:8001/box-label/
    - Enter a generated serial (e.g., "000500")
-   - Press Enter or click Lookup
+   - Press Ente✅ Complete (Go Bridge - Real Printing!)
+- **Phase 4.5**: ✅ Complete (ZPL Templates)
+- **Phase 5**: 🚧 In Progress (UI Print Integration)
+- **Phase 6**: 🚧 Pending (Testing & Polish)
 
-5. **Test Reprint**:
-   - Go to http://127.0.0.1:8001/reprint/
-   - Enter a serial number
-   - Click Search
+---
 
-### 📝 What's Next (Phase 4 & 5)
-
-**Phase 4: Go Printer Bridge**
-- Local HTTP server on `localhost:5000`
+**Development Server**: http://127.0.0.1:8001/  
+**Printer Bridge**: http://localhost:5001/  
+**Admin Panel**: http://127.0.0.1:8001/admin-upc/ (password: "admin")  
+**Date**: February 9, 2026  
+**Django**: 6.0.2  
+**Python**: 3.14.3  
+**Go**: 1.21+r on `localhost:5000`
 - Printer discovery endpoint
 - Print command endpoint
 - Cross-platform binary compilation

@@ -32,7 +32,7 @@
             
             <button class="button is-primary is-fullwidth is-large mt-3" id="lookupBtn">
                 <span class="icon"><i class="fas fa-search"></i></span>
-                <span>Lookup</span>
+                <span>Lookup and Print</span>
             </button>
         </div>
     </div>
@@ -105,7 +105,7 @@
 const recentScans = [];
 
 document.getElementById('serialInput').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' || e.key === 'Tab') {
         e.preventDefault();
         lookupSerial();
     }
@@ -131,6 +131,10 @@ async function lookupSerial() {
             displayResult(result.data);
             addToRecent(result.data);
             showNotification('✓ Serial number found!', 'success');
+            
+            // Auto-print the box label
+            await printBox(result.data.serial_number, result.data.part_number, result.data.upc);
+            
             document.getElementById('serialInput').value = '';
             document.getElementById('serialInput').focus();
         } else {
@@ -174,7 +178,7 @@ function updateRecentTable() {
             <td class="is-family-monospace">${scan.upc || 'N/A'}</td>
             <td>${scan.scanned_at}</td>
             <td>
-                <button class="button is-small is-primary" onclick="printBox('${scan.serial_number}')">
+                <button class="button is-small is-primary" onclick="printBox('${scan.serial_number}', '${scan.part_number}', '${scan.upc || ''}')">
                     <span class="icon is-small"><i class="fas fa-print"></i></span>
                 </button>
             </td>
@@ -186,13 +190,44 @@ function updateRecentTable() {
 
 document.getElementById('printBoxBtn').addEventListener('click', function() {
     const serial = document.getElementById('displaySerial').textContent;
-    printBox(serial);
+    const part = document.getElementById('displayPart').textContent;
+    const upc = document.getElementById('displayUPC').textContent;
+    printBox(serial, part, upc);
 });
 
-function printBox(serial) {
-    // TODO: Integration with Go bridge in Phase 5
-    showNotification(`📋 Print command for serial ${serial} (Go bridge integration coming in Phase 5)`, 'info');
-    console.log('Print box label for:', serial);
+async function printBox(serial, part = null, upc = null) {
+    // If called from recent scans table, we need to get the data
+    if (!part) {
+        const scan = recentScans.find(s => s.serial_number === serial);
+        if (scan) {
+            part = scan.part_number;
+            upc = scan.upc;
+        } else {
+            showNotification('Please lookup the serial first', 'warning');
+            return;
+        }
+    }
+    
+    // Check if printer is selected
+    const selectedPrinter = PrinterBridge.getSelectedPrinter('box');
+    if (!selectedPrinter) {
+        showNotification('Please select a box label printer in Printer Settings first', 'warning');
+        setTimeout(() => {
+            window.location.href = '/printer-settings/';
+        }, 2000);
+        return;
+    }
+    
+    try {
+        await PrinterBridge.printLabel('box', {
+            serial_number: serial,
+            part_number: part,
+            upc: upc || ''
+        }, selectedPrinter);
+    } catch (error) {
+        // Error already shown by PrinterBridge
+        console.error('Print failed:', error);
+    }
 }
 </script>
 {% endblock %}

@@ -16,7 +16,7 @@
     <div class="column is-narrow">
         <div class="box has-background-info-light">
             <p class="has-text-weight-bold">Next Serial:</p>
-            <p class="is-size-4 is-family-monospace">{{ sample_serial }}</p>
+            <p class="is-size-4 is-family-monospace" id="nextSerialDisplay">{{ sample_serial }}</p>
         </div>
     </div>
 </div>
@@ -70,7 +70,7 @@
         </button>
         <button class="button is-primary is-large" id="generateBtn" disabled>
             <span class="icon"><i class="fas fa-cogs"></i></span>
-            <span>Generate & Print Labels</span>
+            <span>Generate & Print Labels (Space)</span>
         </button>
     </div>
 </div>
@@ -87,9 +87,19 @@
 
 {% block extra_js %}
 <script>
+// ============================================================================
+// STATE & CONFIGURATION
+// ============================================================================
 let currentRow = 0;
 let currentSerial = {{ config.current_serial }};
 const digitCount = {{ config.serial_digits }};
+let generatedSerials = [];
+
+const BUTTON_DEFAULT_HTML = '<span class="icon"><i class="fas fa-cogs"></i></span><span>Generate & Print Labels (Space)</span>';
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
 
 function formatSerial(num) {
     return String(num).padStart(digitCount, '0');
@@ -148,17 +158,13 @@ function updateSerialRange(row) {
 
 function checkGenerateButton() {
     const allInputs = document.querySelectorAll('.part-input, .qty-input');
-    let hasData = false;
-    
-    for (let input of allInputs) {
-        if (input.value.trim()) {
-            hasData = true;
-            break;
-        }
-    }
-    
+    const hasData = Array.from(allInputs).some(input => input.value.trim());
     document.getElementById('generateBtn').disabled = !hasData;
 }
+
+// ============================================================================
+// ROW MANAGEMENT
+// ============================================================================
 
 function attachRowHandlers(row) {
     const rowNum = parseInt(row.getAttribute('data-row'));
@@ -196,43 +202,57 @@ function attachRowHandlers(row) {
             addNewRow();
 
             const nextRow = rowNum + 1;
-            let nextPartInput = document.querySelector(`.part-input[data-row="${nextRow}"]`);
-            if (!nextPartInput) {
-                
-                // Wait for DOM update
-                requestAnimationFrame(() => {
-                    nextPartInput = document.querySelector(`.part-input[data-row="${nextRow}"]`);
-                    if (nextPartInput) {
-                        nextPartInput.focus();
-                    }
-                });
-            } else {
-                nextPartInput.focus();
-            }
+            // Wait for DOM update before focusing
+            requestAnimationFrame(() => {
+                const nextPartInput = document.querySelector(`.part-input[data-row="${nextRow}"]`);
+                if (nextPartInput) {
+                    nextPartInput.focus();
+                }
+            });
         }
     });
 }
+
+// ============================================================================
+// INITIALIZATION
+// ============================================================================
 
 // Initialize handlers for existing rows
 document.querySelectorAll('tr[data-row]').forEach(attachRowHandlers);
 
 // Auto-focus first input on page load
-window.addEventListener('DOMContentLoaded', function() {
+window.addEventListener('DOMContentLoaded', () => {
     document.querySelector('.part-input[data-row="0"]').focus();
 });
 
+// ============================================================================
+// BUTTON HANDLERS
+// ============================================================================
+
 // Clear button
-document.getElementById('clearBtn').addEventListener('click', function() {
+document.getElementById('clearBtn').addEventListener('click', () => {
     if (confirm('Clear all scanned data?')) {
         location.reload();
     }
 });
 
-// Generate button
+// Generate & Print button - handles entire workflow
 document.getElementById('generateBtn').addEventListener('click', async function() {
     const btn = this;
     btn.classList.add('is-loading');
     btn.disabled = true;
+    
+    // Check if printer is selected upfront
+    const selectedPrinter = PrinterBridge.getSelectedPrinter('serial');
+    if (!selectedPrinter) {
+        showNotification('Please select a serial label printer in Printer Settings first', 'warning');
+        btn.classList.remove('is-loading');
+        btn.disabled = false;
+        setTimeout(() => {
+            window.location.href = '/printer-settings/';
+        }, 2000);
+        return;
+    }
     
     // Collect all pairs
     const pairs = [];
@@ -250,6 +270,9 @@ document.getElementById('generateBtn').addEventListener('click', async function(
     });
     
     try {
+        // Step 1: Generate serials
+        btn.innerHTML = '<span class="icon"><i class="fas fa-cogs fa-spin"></i></span><span>Generating...</span>';
+        
         const response = await fetch('/api/process-bulk-scans/', {
             method: 'POST',
             headers: {
@@ -261,82 +284,139 @@ document.getElementById('generateBtn').addEventListener('click', async function(
         
         const result = await response.json();
         
-        if (result.success) {
-            displayResults(result.data);
-            showNotification(`✅ Generated ${result.data.total_serials} serial numbers!`, 'success');
-        } else {
+        if (!result.success) {
             showNotification(`❌ Error: ${result.error}`, 'danger');
+            btn.classList.remove('is-loading');
+            btn.disabled = false;
+            btn.innerHTML = BUTTON_DEFAULT_HTML;
+            return;
         }
+        
+        // Store generated serials
+        generatedSerials = [];
+        result.data.results.forEach(res => {
+            if (res.success && res.serials) {
+                res.serials.forEach(serial => {
+                    generatedSerials.push({
+                        serial_number: serial.serial_number,
+                        part_number: res.part_number,
+                        upc: serial.upc || ''
+                    });
+                });
+            }
+        });
+        
+        showNotification(`✅ Generated ${result.data.total_serials} serial numbers!`, 'success');
+        
+        // Update current serial for next batch
+        currentSerial += result.data.total_serials;
+        
+        // Step 2: Print automatically
+        btn.innerHTML = '<span class="icon"><i class="fas fa-print fa-spin"></i></span><span>Printing...</span>';
+        
+        await printAllLabelsInline(btn, selectedPrinter);
+        
     } catch (error) {
         showNotification(`❌ Error: ${error.message}`, 'danger');
-    } finally {
         btn.classList.remove('is-loading');
         btn.disabled = false;
+        btn.innerHTML = BUTTON_DEFAULT_HTML;
     }
 });
 
-function displayResults(data) {
-    const resultsSection = document.getElementById('resultsSection');
-    const resultsContent = document.getElementById('resultsContent');
+// ============================================================================
+// PRINT WORKFLOW
+// ============================================================================
+/**
+ * Print all labels inline after generation and reset form
+ */
+async function printAllLabelsInline(btn, selectedPrinter) {
+    if (generatedSerials.length === 0) {
+        showNotification('No labels to print', 'warning');
+        resetForm(btn);
+        return;
+    }
     
-    let html = `
-        <div class="notification is-success is-light">
-            <p class="has-text-weight-bold">
-                Successfully generated ${data.total_serials} serial numbers across ${data.success_count} part(s)
-            </p>
-        </div>
-        <table class="table is-fullwidth is-striped">
-            <thead>
-                <tr>
-                    <th>Part Number</th>
-                    <th>Quantity</th>
-                    <th>Serial Range</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-    `;
-    
-    data.results.forEach(result => {
-        if (result.success) {
-            html += `
-                <tr class="has-background-success-light">
-                    <td><strong>${result.part_number}</strong></td>
-                    <td>${result.quantity}</td>
-                    <td class="is-family-monospace">${result.serial_range}</td>
-                    <td><span class="tag is-success">✓ Generated</span></td>
-                </tr>
-            `;
+    try {
+        const result = await PrinterBridge.printBatch(
+            'serial',
+            generatedSerials,
+            selectedPrinter,
+            (current, total) => {
+                btn.innerHTML = `<span class="icon"><i class="fas fa-print fa-spin"></i></span><span>Printing ${current}/${total}...</span>`;
+            }
+        );
+        
+        if (result.failed > 0) {
+            showNotification(`Batch complete: ${result.successful} printed, ${result.failed} failed`, 'warning');
         } else {
-            html += `
-                <tr class="has-background-danger-light">
-                    <td><strong>${result.part_number}</strong></td>
-                    <td>${result.quantity || 'N/A'}</td>
-                    <td>-</td>
-                    <td><span class="tag is-danger">✗ ${result.error}</span></td>
-                </tr>
-            `;
+            showNotification(`✅ All ${result.successful} labels printed successfully!`, 'success');
+        }
+        
+        resetForm(btn);
+        
+    } catch (error) {
+        showNotification(`Print error: ${error.message}`, 'danger');
+        resetForm(btn);
+    }
+}
+
+/**
+ * Reset the entire form for next batch
+ */
+function resetForm(btn) {
+    // Clear all inputs
+    document.querySelectorAll('.part-input, .qty-input').forEach(input => {
+        input.value = '';
+    });
+    
+    // Clear serial ranges
+    document.querySelectorAll('.serial-range').forEach(cell => {
+        cell.textContent = '-';
+        cell.classList.remove('has-text-success', 'has-text-weight-bold');
+    });
+    
+    // Remove extra rows, keep only the first one
+    const tbody = document.getElementById('scanTableBody');
+    const rows = tbody.querySelectorAll('tr[data-row]');
+    rows.forEach((row, index) => {
+        if (index > 0) {
+            row.remove();
         }
     });
     
-    html += `
-            </tbody>
-        </table>
-        <div class="buttons">
-            <button class="button is-primary" onclick="location.reload()">
-                <span class="icon"><i class="fas fa-plus"></i></span>
-                <span>Generate More</span>
-            </button>
-            <button class="button is-link" onclick="window.print()">
-                <span class="icon"><i class="fas fa-print"></i></span>
-                <span>Print Labels (Browser Print)</span>
-            </button>
-        </div>
-    `;
+    // Reset row counter
+    currentRow = 0;
     
-    resultsContent.innerHTML = html;
-    resultsSection.style.display = 'block';
-    resultsSection.scrollIntoView({ behavior: 'smooth' });
+    // Reset button state
+    btn.classList.remove('is-loading');
+    btn.disabled = false;
+    btn.innerHTML = BUTTON_DEFAULT_HTML;
+    
+    // Update Next Serial display
+    document.getElementById('nextSerialDisplay').textContent = formatSerial(currentSerial);
+    
+    // Hide results section (if visible)
+    document.getElementById('resultsSection').style.display = 'none';
+    
+    // Focus first input for next batch
+    document.querySelector('.part-input[data-row="0"]').focus();
 }
+
+// ============================================================================
+// KEYBOARD SHORTCUTS
+// ============================================================================
+/**
+ * Spacebar shortcut
+ */
+document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') {
+        const generateBtn = document.getElementById('generateBtn');
+        if (generateBtn && !generateBtn.disabled) {
+            e.preventDefault();
+            generateBtn.click();
+        }
+    }
+});
 </script>
 {% endblock %}

@@ -1,10 +1,10 @@
 # LabelGen Project Roadmap
 
-## Project Status (Updated: Feb 7, 2026)
+## Project Status (Updated: Feb 9, 2026)
 
-**Phases 1-3**: ✅ Complete  
-**Phase 4**: 🚧 In Progress (50% complete)  
-**Phases 5-6**: 📋 Planned
+**Phases 1-4**: ✅ Complete  
+**Phase 5**: 🚧 In Progress (UI Print Integration)  
+**Phase 6**: 📋 Planned (Testing & Polish)
 
 ---
 
@@ -71,82 +71,71 @@
 
 ---
 
-## Phase 4: Go Printer Bridge 🚧 IN PROGRESS
+## Phase 4: Go Printer Bridge ✅ COMPLETE (Completed: Feb 9, 2026)
 
-**Status**: 50% Complete (Started: Feb 7, 2026)  
+**Status**: 100% Complete  
 **Purpose**: Local service to communicate with physical printers
 
 ### Completed ✅
 - [x] Set up Go project in `bridge/` directory
 - [x] Implement HTTP server on localhost:5001
 - [x] Create `/health` endpoint for status checks
-- [x] Create `/printers` endpoint with stubbed printers
-  - [x] Returns 2 stubbed Zebra printers (ZD421, ZT230)
-  - [x] JSON response with printer metadata
-- [x] Create `/print` endpoint (stubbed)
-  - [x] Accepts printer_id, label_type, and data
-  - [x] Validates printer ID
+- [x] Create `/printers` endpoint with **real printer discovery**
+  - [x] Windows: PowerShell Get-Printer + wmic fallback
+  - [x] macOS/Linux: CUPS lpstat integration
+  - [x] Detects USB, Network (TCP/IP), Network (WSD) printers
+  - [x] Identifies thermal printers by driver keywords
+  - [x] Creates unique IDs for duplicate printer models (name + port/serial)
+  - [x] Returns printer status (ready/offline/busy)
+- [x] Create `/print` endpoint with **real printing**
+  - [x] Windows: Direct write to `\\.\PrinterName`
+  - [x] macOS/Linux: CUPS `lpr -o raw`
+  - [x] Accepts ZPL in data.zpl field
   - [x] Returns job ID
-  - [x] Logs print requests
-- [x] Add CORS support for Django frontend (localhost:8001)
-- [x] Basic error handling and logging
-
-### Remaining Tasks
-- [ ] Real printer discovery
-  - [ ] USB printer detection (CUPS/direct access)
-  - [ ] Network printer scanning (mDNS/Bonjour)
-  - [ ] Printer capability detection
-- [ ] ZPL template engine
-  - [ ] Create label templates for serial numbers
-  - [ ] Create templates for box labels
-  - [ ] Variable substitution
-- [ ] Actual print job execution
-  - [ ] Send ZPL to Zebra printers
-  - [ ] Handle printer responses
-  - [ ] Error recovery
-- [ ] Print queue management (optional)
-- [ ] Printer status monitoring (paper, errors, etc.)
+  - [x] Full error handling
+- [x] Add CORS support for Django frontend
+- [x] Cross-platform detection (runtime.GOOS)
+- [x] Comprehensive error handling and logging
+- [x] Code cleanup (432 lines, production-ready)
 
 ---
 
-## Phase 5: Integration & Label Templates 📋 PLANNED
+## Phase 4.5: ZPL Label Templates ✅ COMPLETE (Completed: Feb 9, 2026)
 
-**Status**: Not Started  
-**Purpose**: Connect all pieces and create label designs
+**Purpose**: Editable ZPL templates for label printing
 
-### Preparation Done ✅
-- [x] Printer settings page created (`/printer-settings/`)
-- [x] Browser localStorage for per-client printer config
-- [x] Two printer types: serial labels and box labels
-- [x] Printer bridge status indicator in navbar
-- [x] Health check on page load
+### Completed ✅
+- [x] Add ZPL template fields to Config model
+- [x] Create migrations for template fields
+- [x] Create LabelTemplateForm for admin editing
+- [x] Add template editor to admin_upc.html with preview
+- [x] Implement Labelary API integration for ZPL→PNG preview
+- [x] Create default ZPL templates (4x2" serial, 4x3" box)
+- [x] Add /api/generate-label-zpl/ endpoint
+- [x] Variable substitution: {{serial}}, {{part}}, {{upc_full}}, {{upc_11_digits}}
+- [x] UPC-A barcode implementation (11-digit format)
+
+---
+
+## Phase 5: UI Print Integration 🚧 IN PROGRESS (Started: Feb 9, 2026)
+
+**Status**: Just Started  
+**Purpose**: Add print buttons to UI pages
+
+### Architecture Clarified ✅
+- Browser orchestrates between Django (ZPL generation) and local Bridge (printing)
+- Django runs on central server, generates ZPL only
+- Bridge runs on each workstation, handles local printers
+- localStorage keys include Django URL for multi-server support
 
 ### Remaining Tasks
-- [ ] Design ZPL label templates
-  - [ ] Serial number label (2-inch format for small labels)
-  - [ ] Box shipping label (4-inch format for shipping)
-  - [ ] Include Code 128 barcodes for serial numbers
-  - [ ] Include UPC-A barcodes for product codes
-  - [ ] Human-readable text for part numbers
-- [ ] Create JavaScript print controller utility
-  - [ ] Shared print helper in base.html
-  - [ ] Get selected printer from localStorage
-  - [ ] Validate printer is online before printing
-  - [ ] Send print requests to bridge
-  - [ ] Show success/error notifications
-- [ ] Integrate print functionality
-  - [ ] **bulk_generate.html**: Add "Print Labels" button after generation
-    - Sends all generated serials to bridge
-    - Uses `labelgen_serial_printer` from localStorage
-  - [ ] **box_label.html**: Auto-print after serial lookup
-    - Uses `labelgen_box_printer` from localStorage
-  - [ ] **reprint.html**: Add "Reprint" button after lookup
-    - Uses `labelgen_serial_printer` from localStorage
-- [ ] Test print jobs with actual Zebra printers
-- [ ] Handle edge cases
-  - [ ] Printer offline → show error notification
-  - [ ] No printer selected → redirect to settings
-  - [ ] Bridge down → show connection warning
+- [ ] Create shared JavaScript print utility in base.html
+- [ ] Update bulk_generate.html with print functionality
+- [ ] Update box_label.html with print button
+- [ ] Update reprint.html with reprint button
+- [ ] Add printer selection dropdowns to all pages
+- [ ] Error handling (no printer, offline, bridge down)
+- [ ] Loading states and visual feedback
 
 ---
 

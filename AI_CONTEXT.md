@@ -1,7 +1,7 @@
 # AI Context Document for LabelGen
 
-**Last Updated**: February 7, 2026  
-**Project Status**: Phase 4 In Progress (50% complete)
+**Last Updated**: February 9, 2026  
+**Project Status**: Phase 4 Complete, Phase 5 Ready
 
 ## Project Overview
 
@@ -15,10 +15,15 @@ LabelGen is a warehouse inventory management system that converts bulk part numb
 - **Icons**: Font Awesome 6.5.1
 
 ### Architecture
-Monorepo structure:
-- `backend/` - Django web application (port 8001)
-- `bridge/` - Go printer service (port 5001)
+**Critical**: Client-Server with Browser Orchestration
+- `backend/` - Django web application (port 8001) - **Central server, generates ZPL only**
+- `bridge/` - Go printer service (port 5001) - **Runs locally on each workstation**
 - `venv/` - Python virtual environment
+
+**Data Flow**:
+1. Browser → Django: Get ZPL string (with serial/part/UPC data)
+2. Browser → Local Bridge (localhost:5001): Get printers, send ZPL to print
+3. **Django NEVER calls Bridge** - Browser orchestrates all communication
 
 ## Key Design Decisions
 
@@ -26,11 +31,17 @@ Monorepo structure:
 Decided to reorganize as monorepo to accommodate both Django backend and Go printer bridge in one repository.
 
 ### 2. Printer Selection via localStorage
-**Critical**: Printer settings are stored in browser localStorage, NOT in the database. This is because the Django app runs centrally for many clients, and each workstation needs its own printer configuration.
+**Critical**: Printer settings are stored in browser localStorage, keyed by Django URL. This is because:
+- Django app runs on central server
+- Bridge runs locally on each workstation
+- Each workstation has its own USB printers
+- Browser needs to remember which local printer to use for that Django instance
 
-Two localStorage keys:
-- `labelgen_serial_printer` - For inventory serial number labels
-- `labelgen_box_printer` - For shipping box labels
+localStorage keys:
+- `labelgen_serial_printer_<django_url>` - Serial label printer for this Django server
+- `labelgen_box_printer_<django_url>` - Box label printer for this Django server
+
+Example: `labelgen_serial_printer_http://192.168.1.100:8001` = `datamax_usb001`
 
 ### 3. Denormalized UPC in SerialNumber
 UPC is copied from Product to SerialNumber at creation time for fast label printing without joins.
@@ -60,6 +71,13 @@ Simple password-protected admin (not Django's built-in admin) with auto-logout w
 - `serial_digits` (IntegerField) - Number of digits (default: 6)
 - `current_serial` (IntegerField) - Next serial to generate (default: 500)
 - `admin_password` (CharField) - Admin password (default: "admin")
+- `serial_label_zpl` (TextField) - ZPL template for 4x2" serial labels
+- `box_label_zpl` (TextField) - ZPL template for 4x3" box labels
+- `serial_label_width` (DecimalField) - Serial label width in inches (default: 4.0)
+- `serial_label_height` (DecimalField) - Serial label height in inches (default: 2.0)
+- `box_label_width` (DecimalField) - Box label width in inches (default: 4.0)
+- `box_label_height` (DecimalField) - Box label height in inches (default: 3.0)
+- `label_dpi` (IntegerField) - Printer DPI: 203, 300, or 600 (default: 203)
 
 ## File Structure
 
@@ -76,7 +94,15 @@ Simple password-protected admin (not Django's built-in admin) with auto-logout w
 
 **Views** (`backend/inventory/views.py`)
 - 7 public pages: home, bulk_generate, box_label, reprint, printer_settings, admin_login, admin_upc
-- 6 API endpoints: process_bulk_scans, lookup_serial, admin_upload_csv, admin_update_upc, admin_download_template, admin_logout
+- API endpoints:
+  - process_bulk_scans - Create serial numbers from scans
+  - lookup_serial - Get serial number data
+  - admin_upload_csv - Bulk UPC upload
+  - admin_update_upc - Update single UPC
+  - admin_download_template - CSV template download
+  - preview_zpl - Preview ZPL via Labelary API
+  - generate_label_zpl - **Generate ZPL string for serial/box labels** (browser sends this to local bridge)
+  - admin_logout - Clear session
 
 **Forms** (`backend/inventory/forms.py`)
 - `AdminLoginForm` - Login form (NOT the same as AdminPasswordChangeForm!)
@@ -84,6 +110,7 @@ Simple password-protected admin (not Django's built-in admin) with auto-logout w
 - `AdminPasswordChangeForm` - Change admin password (new_password, confirm_password)
 - `UPCUploadForm` - CSV file upload with parse_csv() method
 - `ProductUPCForm` - Individual UPC editing
+- `LabelTemplateForm` - ZPL template editor (serial/box templates, dimensions, DPI)
 
 **Templates** (`backend/inventory/templates/inventory/`)
 - `base.html` - Navigation, theme toggle, printer status indicator, shared JS
@@ -97,13 +124,35 @@ Simple password-protected admin (not Django's built-in admin) with auto-logout w
 
 ### Bridge (Go)
 
-**Main** (`bridge/main.go`)
+**Main** (`bridge/main.go`) - **432 lines, production-ready**
 - HTTP server on port 5001
-- CORS enabled for localhost:8001
+- CORS enabled for localhost:8001 and 127.0.0.1:8001
+- Cross-platform printer discovery and printing
 - Endpoints:
   - `GET /health` - Health check
-  - `GET /printers` - List available printers (stubbed)
-  - `POST /print` - Accept print jobs (stubbed)
+  - `GET /printers` - **List available printers** (real implementation)
+    - Windows: PowerShell Get-Printer + wmic fallback
+    - macOS/Linux: CUPS lpstat
+    - Returns: printer ID, name, type (thermal/standard), connection (USB/Network), status
+    - Unique IDs handle duplicate printer models (name + port/serial)
+  - `POST /print` - **Send ZPL to printer** (real implementation)
+    - Windows: Direct write to `\\.\PrinterName`
+    - macOS/Linux: lpr with raw option
+    - Accepts: printer_id, label_type, data.zpl
+    - Returns: success, message, job_id
+
+**Printer Discovery**:
+- Automatically detects OS (Windows primary, macOS/Linux fallback)
+- Windows: PowerShell for modern systems, wmic for legacy
+- Detects thermal printers by driver keywords (Datamax, Zebra, Sato, TSC, etc.)
+- Creates unique IDs from printer name + port/URI to distinguish identical models
+- Parses connection type (USB, Network, Serial) from port/URI info
+
+**Printing**:
+- Windows: Opens `\\.\PrinterName` as file, writes raw ZPL bytes
+- macOS/Linux: Creates temp file, sends via `lpr -o raw`
+- No printer drivers needed - raw ZPL passthrough
+- Works with any ZPL-compatible printer (Zebra, Datamax O'Neil, etc.)
 
 ## Important Implementation Details
 
@@ -117,15 +166,22 @@ Simple password-protected admin (not Django's built-in admin) with auto-logout w
 ### Admin Interface
 - Auto-logout implemented via JavaScript click handlers on non-admin links
 - Removed `beforeunload` event to prevent logout during form submission
-- Separate forms for config and password to avoid conflicts
+- Separate forms for config, password, and label templates to avoid conflicts
 - Form naming was critical: `AdminLoginForm` vs `AdminPasswordChangeForm`
+- **ZPL Template Editor**: Live preview using Labelary API
+  - Editable templates with monospace font
+  - Preview button generates PNG from ZPL
+  - Supports {{serial}}, {{part}}, {{upc_full}}, {{upc_11_digits}} variables
+  - Separate templates and dimensions for serial vs box labels
+  - DPI selector (203/300/600) affects preview quality
 
 ### Printer Settings
-- Fetches printers from bridge on page load
+- Fetches printers from **local bridge** (localhost:5001) via JavaScript
 - Displays connection status (online/offline/checking)
 - Manual refresh button
 - Dropdown shows printer name and connection type
 - Save button stores to localStorage with visual feedback
+- **localStorage key includes Django URL** for multi-server support
 
 ### Navigation Bar
 - Shows all main features (Bulk Gen, Box Label, Reprint, Printers, Admin)
@@ -156,6 +212,12 @@ Simple password-protected admin (not Django's built-in admin) with auto-logout w
 
 5. **Printer Storage**: NEVER store printer selection in database - must be localStorage for per-client config
 
+6. **Architecture Confusion**: Django CANNOT call the bridge - bridge runs on workstation localhost, Django on central server. Browser must orchestrate!
+
+7. **UPC-A Barcode Format**: UPC-A requires 11 digits (not 12) - the 12th is check digit. Use {{upc_11_digits}} variable in ZPL.
+
+8. **ZPL Template Syntax**: Django template tags conflict with ZPL {{}} syntax. Use `{% templatetag openvariable %}` for displaying literal {{ in templates.
+
 ## Development Workflow
 
 ### Running the Project
@@ -167,10 +229,13 @@ source ../venv/bin/activate.fish  # or .../venv/bin/activate
 python manage.py runserver 8001
 ```
 
-**Terminal 2 - Go Bridge**:
+**Terminal 2 - Go Bridge** (on each workstation):
 ```bash
 cd bridge
 go run main.go
+# Or build binary:
+go build -o labelgen-bridge
+./labelgen-bridge
 ```
 
 ### Migrations
@@ -183,58 +248,75 @@ python manage.py migrate
 ### Current Migrations
 - `0001_initial.py` - Product, SerialNumber, Config models
 - `0002_config_admin_password.py` - Added admin_password field
+- `0003_config_box_label_zpl_config_label_dpi_and_more.py` - Added ZPL template fields
+- `0004_remove_config_label_height_remove_config_label_width_and_more.py` - Separated serial/box dimensions
+- `0005_update_zpl_templates.py` - Updated default templates with centered layout
+- Multiple updates for UPC variable handling ({{upc_full}}, {{upc_11_digits}})
 
 ## Next Steps (When Resuming)
 
-### Immediate Priority: Print Integration
+### Phase 5: UI Integration - Print Buttons
 
-1. **Add Print Helper to base.html**
+1. **Add Printer Dropdown to Pages**
+   - bulk_generate.html, box_label.html, reprint.html
+   - Fetch printers from localhost:5001/printers on page load
+   - Remember selection in localStorage
+
+2. **Add Print Functionality**
    ```javascript
-   async function printLabel(printerType, labelType, data) {
-     const printerKey = `labelgen_${printerType}_printer`;
-     const printerId = localStorage.getItem(printerKey);
-     
-     if (!printerId) {
-       showNotification('No printer selected', 'warning');
-       return;
-     }
-     
-     const response = await fetch('http://localhost:5001/print', {
+   async function printLabel(serialNumber, partNumber, upc, labelType) {
+     // 1. Get ZPL from Django
+     const zplResp = await fetch('/api/generate-label-zpl/', {
        method: 'POST',
-       headers: { 'Content-Type': 'application/json' },
+       headers: {'Content-Type': 'application/json'},
+       body: JSON.stringify({
+         serial_number: serialNumber,
+         part_number: partNumber,
+         upc: upc,
+         label_type: labelType  // 'serial' or 'box'
+       })
+     });
+     const {zpl} = await zplResp.json();
+     
+     // 2. Get selected printer from localStorage
+     const printerKey = labelType === 'box' ? 'box_printer' : 'serial_printer';
+     const printerId = localStorage.getItem(`labelgen_${printerKey}_${window.location.origin}`);
+     
+     // 3. Send ZPL to local bridge
+     const printResp = await fetch('http://localhost:5001/print', {
+       method: 'POST',
+       headers: {'Content-Type': 'application/json'},
        body: JSON.stringify({
          printer_id: printerId,
          label_type: labelType,
-         data: data
+         data: {zpl: zpl}
        })
      });
-     // Handle response...
+     return await printResp.json();
    }
    ```
 
-2. **Update bulk_generate.html**
+3. **Update bulk_generate.html**
    - Add "Print All Labels" button after generation
-   - Call `printLabel('serial', 'inventory_label', {...})` for each row
-   - Show progress indicator
+   - Loop through generated serials, call printLabel() for each
+   - Show progress ("Printing 3 of 25...")
 
-3. **Update box_label.html**
+4. **Update box_label.html**
    - Add "Print Box Label" button after lookup
-   - Call `printLabel('box', 'box_label', {...})`
+   - Call printLabel() with box label type
 
-4. **Update reprint.html**
-   - Similar to box_label
+5. **Update reprint.html**
+   - Add "Reprint Label" button after lookup
 
-### ZPL Template Research
-- Study Zebra ZPL II format
-- Create templates for 2-inch and 4-inch labels
-- Code 128 barcode for serial numbers
-- UPC-A barcode for product codes
+### Phase 6: Testing & Polish
 
-### Real Printer Discovery
-- Research CUPS integration on macOS
-- USB printer detection
-- Network printer mDNS/Bonjour scanning
-- Replace stubbed printers in Go
+- Test with actual Datamax O'Neil E-4204B printer
+- Test UPC-A barcode scanning
+- Test Code 128 barcode scanning for serials
+- Error handling (printer offline, bridge down, etc.)
+- Loading states and visual feedback
+- Cross-browser testing
+- Windows deployment guide for bridge binary
 
 ## URLs
 
@@ -255,6 +337,9 @@ python manage.py migrate
 - Serial numbers preserve leading zeros based on `serial_digits` setting
 - Config model is a singleton (only one record allowed)
 - UPC field is optional everywhere (nullable)
+- Datamax O'Neil E-4204B printer supports ZPL via PL-Z emulation mode
+- Labelary API used for ZPL preview (converts ZPL to PNG)
+- DPI to DPMM conversion: 203→8dpmm, 300→12dpmm, 600→24dpmm
 
 ## Browser Compatibility
 
@@ -269,7 +354,10 @@ python manage.py migrate
 - May need print queue if high volume
 - Could add WebSocket for real-time printer status
 - Consider PWA for offline support
+- Compile Go bridge to Windows binary for deployment
+- Add label design GUI (visual ZPL editor)
+- Support other label formats (EPL, CPCL) if needed
 
 ---
 
-**Note for AI**: When resuming this project, start by reading this file, then check TODO.md for current phase. The printer bridge is stubbed and ready for integration. Focus on adding print functionality to the UI pages first, then work on real printer discovery and ZPL templates.
+**Note for AI**: When resuming this project, start by reading this file. Phase 4 is complete - printer bridge is fully functional with real Windows/macOS printer discovery and printing. Django generates ZPL strings. Browser orchestrates between Django (data/ZPL) and local bridge (printing). Next: Add print buttons to UI pages.

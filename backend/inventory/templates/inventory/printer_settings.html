@@ -13,7 +13,8 @@
     <p class="subtitle">Configure which printers to use for labels</p>
 
     <div class="notification is-info is-light">
-        <p><strong>Note:</strong> Printer settings are saved locally in your browser and apply only to this workstation.</p>
+        <p><strong>Note:</strong> Printer settings are saved locally in your browser and apply only to this workstation.
+        </p>
     </div>
 
     <!-- Connection Status -->
@@ -33,9 +34,9 @@
             <span>Refresh Printers</span>
         </button>
     </div>
-
+    <div class="container box columns">
     <!-- Serial Label Printer -->
-    <div class="box">
+    <div class="column">
         <h2 class="title is-4">
             <span class="icon-text">
                 <span class="icon"><i class="fas fa-barcode"></i></span>
@@ -43,7 +44,7 @@
             </span>
         </h2>
         <p class="mb-3">Used for printing individual serial number labels during bulk generation</p>
-        
+
         <div class="field">
             <label class="label">Select Printer</label>
             <div class="control">
@@ -58,7 +59,8 @@
     </div>
 
     <!-- Box Label Printer -->
-    <div class="box">
+
+    <div class="column">
         <h2 class="title is-4">
             <span class="icon-text">
                 <span class="icon"><i class="fas fa-box"></i></span>
@@ -66,7 +68,7 @@
             </span>
         </h2>
         <p class="mb-3">Used for printing shipping box labels</p>
-        
+
         <div class="field">
             <label class="label">Select Printer</label>
             <div class="control">
@@ -81,152 +83,156 @@
     </div>
 
     <!-- Save Button -->
-    <div class="box has-background-light">
+    <div class="column">
         <button class="button is-primary is-large" id="savePrinters">
             <span class="icon"><i class="fas fa-save"></i></span>
             <span>Save Printer Settings</span>
         </button>
     </div>
 </div>
+</div>
 
 <script>
-const BRIDGE_URL = 'http://localhost:5001';
-let availablePrinters = [];
+    let availablePrinters = [];
 
-// Load saved printer settings
-function loadSavedSettings() {
-    const serialPrinter = localStorage.getItem('labelgen_serial_printer');
-    const boxPrinter = localStorage.getItem('labelgen_box_printer');
-    
-    if (serialPrinter) {
-        document.getElementById('serialPrinter').value = serialPrinter;
-        updatePrinterInfo('serial', serialPrinter);
-    }
-    if (boxPrinter) {
-        document.getElementById('boxPrinter').value = boxPrinter;
-        updatePrinterInfo('box', boxPrinter);
-    }
-}
+    // Load saved printer settings using PrinterBridge
+    function loadSavedSettings() {
+        const serialPrinter = PrinterBridge.getSelectedPrinter('serial');
+        const boxPrinter = PrinterBridge.getSelectedPrinter('box');
 
-// Fetch available printers from bridge
-async function fetchPrinters() {
-    const statusEl = document.getElementById('bridgeStatus');
-    const refreshBtn = document.getElementById('refreshPrinters');
-    
-    refreshBtn.classList.add('is-loading');
-    statusEl.className = 'notification is-info';
-    statusEl.innerHTML = '<span class="icon"><i class="fas fa-spinner fa-pulse"></i></span><span>Fetching printers...</span>';
-    
-    try {
-        const response = await fetch(`${BRIDGE_URL}/printers`);
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
+        if (serialPrinter) {
+            document.getElementById('serialPrinter').value = serialPrinter;
+            updatePrinterInfo('serial', serialPrinter);
         }
-        
-        const data = await response.json();
-        
-        if (data.success && data.printers) {
-            availablePrinters = data.printers;
+        if (boxPrinter) {
+            document.getElementById('boxPrinter').value = boxPrinter;
+            updatePrinterInfo('box', boxPrinter);
+        }
+    }
+
+    // Fetch available printers from local bridge
+    async function fetchPrinters() {
+        const statusEl = document.getElementById('bridgeStatus');
+        const refreshBtn = document.getElementById('refreshPrinters');
+
+        refreshBtn.classList.add('is-loading');
+        statusEl.className = 'notification is-info';
+        statusEl.innerHTML = '<span class="icon"><i class="fas fa-spinner fa-pulse"></i></span><span>Fetching printers...</span>';
+
+        try {
+            // Create AbortController for timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+            availablePrinters = await PrinterBridge.getPrinters();
+            clearTimeout(timeoutId);
+
             populatePrinterDropdowns();
-            
+
             statusEl.className = 'notification is-success';
-            statusEl.innerHTML = `<span class="icon"><i class="fas fa-check-circle"></i></span><span>Connected • Found ${data.printers.length} printer(s)</span>`;
-        } else {
-            throw new Error('Invalid response from bridge');
+            statusEl.innerHTML = `<span class="icon"><i class="fas fa-check-circle"></i></span><span>Connected • Found ${availablePrinters.length} printer(s)</span>`;
+        } catch (error) {
+            console.error('Failed to fetch printers:', error);
+
+            // Check if it's a timeout error
+            if (error.name === 'AbortError' || error.message.includes('aborted')) {
+                statusEl.className = 'notification is-warning';
+                statusEl.innerHTML = `<span class="icon"><i class="fas fa-exclamation-triangle"></i></span><span>Connection timeout - Is the bridge running? <code>cd bridge && go run main.go</code></span>`;
+            } else {
+                statusEl.className = 'notification is-danger';
+                statusEl.innerHTML = `<span class="icon"><i class="fas fa-exclamation-triangle"></i></span><span>Failed to connect to printer bridge at ${PrinterBridge.BRIDGE_URL}</span>`;
+            }
+
+            // Clear dropdowns
+            document.getElementById('serialPrinter').innerHTML = '<option value="">-- Bridge not available --</option>';
+            document.getElementById('boxPrinter').innerHTML = '<option value="">-- Bridge not available --</option>';
+        } finally {
+            refreshBtn.classList.remove('is-loading');
         }
-    } catch (error) {
-        console.error('Failed to fetch printers:', error);
-        statusEl.className = 'notification is-danger';
-        statusEl.innerHTML = `<span class="icon"><i class="fas fa-exclamation-triangle"></i></span><span>Failed to connect to printer bridge at ${BRIDGE_URL}</span>`;
-        
-        // Clear dropdowns
-        document.getElementById('serialPrinter').innerHTML = '<option value="">-- Bridge not available --</option>';
-        document.getElementById('boxPrinter').innerHTML = '<option value="">-- Bridge not available --</option>';
-    } finally {
-        refreshBtn.classList.remove('is-loading');
     }
-}
 
-// Populate printer dropdowns
-function populatePrinterDropdowns() {
-    const serialSelect = document.getElementById('serialPrinter');
-    const boxSelect = document.getElementById('boxPrinter');
-    
-    const savedSerial = serialSelect.value;
-    const savedBox = boxSelect.value;
-    
-    // Build options HTML
-    let optionsHTML = '<option value="">-- No printer selected --</option>';
-    availablePrinters.forEach(printer => {
-        optionsHTML += `<option value="${printer.id}">${printer.name} (${printer.connection})</option>`;
+    // Populate printer dropdowns
+    function populatePrinterDropdowns() {
+        const serialSelect = document.getElementById('serialPrinter');
+        const boxSelect = document.getElementById('boxPrinter');
+
+        const savedSerial = serialSelect.value;
+        const savedBox = boxSelect.value;
+
+        // Build options HTML
+        let optionsHTML = '<option value="">-- No printer selected --</option>';
+        availablePrinters.forEach(printer => {
+            optionsHTML += `<option value="${printer.id}">${printer.name} (${printer.connection})</option>`;
+        });
+
+        serialSelect.innerHTML = optionsHTML;
+        boxSelect.innerHTML = optionsHTML;
+
+        // Restore selections
+        if (savedSerial) serialSelect.value = savedSerial;
+        if (savedBox) boxSelect.value = savedBox;
+
+        loadSavedSettings();
+    }
+
+    // Update printer info text
+    function updatePrinterInfo(type, printerId) {
+        const printer = availablePrinters.find(p => p.id === printerId);
+        const infoEl = document.getElementById(`${type}PrinterInfo`);
+
+        if (printer) {
+            infoEl.className = 'help is-success';
+            infoEl.textContent = `${printer.description} • ${printer.type} • ${printer.status}`;
+        } else {
+            infoEl.className = 'help';
+            infoEl.textContent = '';
+        }
+    }
+
+    // Save printer settings using PrinterBridge
+    document.getElementById('savePrinters').addEventListener('click', function () {
+        const serialPrinter = document.getElementById('serialPrinter').value;
+        const boxPrinter = document.getElementById('boxPrinter').value;
+
+        // Save using PrinterBridge (includes Django URL in keys)
+        if (serialPrinter) {
+            PrinterBridge.setSelectedPrinter('serial', serialPrinter);
+        } else {
+            localStorage.removeItem(PrinterBridge._getStorageKey('serial'));
+        }
+
+        if (boxPrinter) {
+            PrinterBridge.setSelectedPrinter('box', boxPrinter);
+        } else {
+            localStorage.removeItem(PrinterBridge._getStorageKey('box'));
+        }
+
+        // Show success message
+        const btn = this;
+        const originalHTML = btn.innerHTML;
+        btn.className = 'button is-success is-large';
+        btn.innerHTML = '<span class="icon"><i class="fas fa-check"></i></span><span>Settings Saved!</span>';
+
+        setTimeout(() => {
+            btn.className = 'button is-primary is-large';
+            btn.innerHTML = originalHTML;
+        }, 2000);
     });
-    
-    serialSelect.innerHTML = optionsHTML;
-    boxSelect.innerHTML = optionsHTML;
-    
-    // Restore selections
-    if (savedSerial) serialSelect.value = savedSerial;
-    if (savedBox) boxSelect.value = savedBox;
-    
-    loadSavedSettings();
-}
 
-// Update printer info text
-function updatePrinterInfo(type, printerId) {
-    const printer = availablePrinters.find(p => p.id === printerId);
-    const infoEl = document.getElementById(`${type}PrinterInfo`);
-    
-    if (printer) {
-        infoEl.className = 'help is-success';
-        infoEl.textContent = `${printer.description} • ${printer.type} • ${printer.status}`;
-    } else {
-        infoEl.className = 'help';
-        infoEl.textContent = '';
-    }
-}
+    // Refresh button handler
+    document.getElementById('refreshPrinters').addEventListener('click', fetchPrinters);
 
-// Save printer settings
-document.getElementById('savePrinters').addEventListener('click', function() {
-    const serialPrinter = document.getElementById('serialPrinter').value;
-    const boxPrinter = document.getElementById('boxPrinter').value;
-    
-    if (serialPrinter) {
-        localStorage.setItem('labelgen_serial_printer', serialPrinter);
-    } else {
-        localStorage.removeItem('labelgen_serial_printer');
-    }
-    
-    if (boxPrinter) {
-        localStorage.setItem('labelgen_box_printer', boxPrinter);
-    } else {
-        localStorage.removeItem('labelgen_box_printer');
-    }
-    
-    // Show success message
-    const btn = this;
-    const originalHTML = btn.innerHTML;
-    btn.className = 'button is-success is-large';
-    btn.innerHTML = '<span class="icon"><i class="fas fa-check"></i></span><span>Settings Saved!</span>';
-    
-    setTimeout(() => {
-        btn.className = 'button is-primary is-large';
-        btn.innerHTML = originalHTML;
-    }, 2000);
-});
+    // Dropdown change handlers
+    document.getElementById('serialPrinter').addEventListener('change', function () {
+        updatePrinterInfo('serial', this.value);
+    });
 
-// Refresh button handler
-document.getElementById('refreshPrinters').addEventListener('click', fetchPrinters);
+    document.getElementById('boxPrinter').addEventListener('change', function () {
+        updatePrinterInfo('box', this.value);
+    });
 
-// Dropdown change handlers
-document.getElementById('serialPrinter').addEventListener('change', function() {
-    updatePrinterInfo('serial', this.value);
-});
-
-document.getElementById('boxPrinter').addEventListener('change', function() {
-    updatePrinterInfo('box', this.value);
-});
-
-// Initial load
-fetchPrinters();
+    // Initial load
+    document.addEventListener("DOMContentLoaded", fetchPrinters);
+    // fetchPrinters();
 </script>
 {% endblock %}

@@ -153,6 +153,154 @@
     </form>
 </div>
 
+<!-- Label Template Section -->
+<div class="box">
+    <h2 class="title is-4">
+        <span class="icon-text">
+            <span class="icon"><i class="fas fa-tag"></i></span>
+            <span>ZPL Label Templates</span>
+        </span>
+    </h2>
+    
+    {% if template_updated %}
+        <div class="notification is-success">
+            <button class="delete"></button>
+            Label templates updated successfully!
+        </div>
+    {% endif %}
+    
+    <div class="notification is-info is-light">
+        <p class="has-text-weight-bold">Template Variables:</p>
+        <ul>
+            <li><code>{% templatetag openvariable %}serial{% templatetag closevariable %}</code> - Serial number (e.g., 000500)</li>
+            <li><code>{% templatetag openvariable %}part{% templatetag closevariable %}</code> - Part number (e.g., 232-9983)</li>
+            <li><code>{% templatetag openvariable %}upc_full{% templatetag closevariable %}</code> - Full 12-digit UPC (e.g., 012345678905)</li>
+            <li><code>{% templatetag openvariable %}upc_11_digits{% templatetag closevariable %}</code> - First 11 digits of UPC for barcode (e.g., 01234567890)</li>
+        </ul>
+        <p class="mt-2"><strong>Preview:</strong> Click preview buttons to render labels locally. You can also test ZPL at <a href="https://labelary.com/viewer.html" target="_blank">Labelary Viewer</a>.</p>
+        <p class="mt-2"><strong>UPC-A Barcode Example:</strong> <code>^FO100,100^BY2^BUN,70^FD{% templatetag openvariable %}upc_11_digits{% templatetag closevariable %}^FS</code></p>
+        <p class="mt-1"><strong>UPC Text Example:</strong> <code>^FO100,200^A0N,25,25^FDUPC: {% templatetag openvariable %}upc_full{% templatetag closevariable %}^FS</code></p>
+    </div>
+    
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="update_templates" value="1">
+        
+        <div class="columns">
+            <div class="column">
+                <div class="field">
+                    <label class="label">{{ template_form.label_dpi.label }}</label>
+                    <div class="control">
+                        <div class="select">
+                            {{ template_form.label_dpi }}
+                        </div>
+                    </div>
+                    <p class="help">{{ template_form.label_dpi.help_text }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="columns">
+            <div class="column is-half">
+                <h3 class="subtitle is-5 mb-3">
+                    <span class="icon-text">
+                        <span class="icon"><i class="fas fa-barcode"></i></span>
+                        <span>Serial Number Label</span>
+                    </span>
+                </h3>
+                
+                <div class="columns is-mobile">
+                    <div class="column">
+                        <div class="field">
+                            <label class="label">{{ template_form.serial_label_width.label }}</label>
+                            <div class="control">
+                                {{ template_form.serial_label_width }}
+                            </div>
+                            <p class="help">{{ template_form.serial_label_width.help_text }}</p>
+                        </div>
+                    </div>
+                    <div class="column">
+                        <div class="field">
+                            <label class="label">{{ template_form.serial_label_height.label }}</label>
+                            <div class="control">
+                                {{ template_form.serial_label_height }}
+                            </div>
+                            <p class="help">{{ template_form.serial_label_height.help_text }}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="field">
+                    <label class="label">{{ template_form.serial_label_zpl.label }}</label>
+                    <div class="control">
+                        {{ template_form.serial_label_zpl }}
+                    </div>
+                    <p class="help">{{ template_form.serial_label_zpl.help_text }}</p>
+                    <button type="button" class="button is-small is-info mt-2" onclick="previewLabel('serial')">
+                        <span class="icon"><i class="fas fa-eye"></i></span>
+                        <span>Preview Serial Label</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="column is-half">
+                <h3 class="subtitle is-5 mb-3">
+                    <span class="icon-text">
+                        <span class="icon"><i class="fas fa-box"></i></span>
+                        <span>Box/Shipping Label</span>
+                    </span>
+                </h3>
+                
+                <div class="columns is-mobile">
+                    <div class="column">
+                        <div class="field">
+                            <label class="label">{{ template_form.box_label_width.label }}</label>
+                            <div class="control">
+                                {{ template_form.box_label_width }}
+                            </div>
+                            <p class="help">{{ template_form.box_label_width.help_text }}</p>
+                        </div>
+                    </div>
+                    <div class="column">
+                        <div class="field">
+                            <label class="label">{{ template_form.box_label_height.label }}</label>
+                            <div class="control">
+                                {{ template_form.box_label_height }}
+                            </div>
+                            <p class="help">{{ template_form.box_label_height.help_text }}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="field">
+                    <label class="label">{{ template_form.box_label_zpl.label }}</label>
+                    <div class="control">
+                        {{ template_form.box_label_zpl }}
+                    </div>
+                    <p class="help">{{ template_form.box_label_zpl.help_text }}</p>
+                    <button type="button" class="button is-small is-info mt-2" onclick="previewLabel('box')">
+                        <span class="icon"><i class="fas fa-eye"></i></span>
+                        <span>Preview Box Label</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="field">
+            <div class="control">
+                <button type="submit" class="button is-primary">
+                    <span class="icon"><i class="fas fa-save"></i></span>
+                    <span>Save Label Templates</span>
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
 <!-- CSV Upload Section -->
 <div class="box">
     <h2 class="title is-4">
@@ -255,6 +403,23 @@
                 {% endfor %}
             </tbody>
         </table>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal" id="previewModal">
+    <div class="modal-background"></div>
+    <div class="modal-card" style="width: 90%; max-width: 800px;">
+        <header class="modal-card-head">
+            <p class="modal-card-title" id="previewTitle">Label Preview</p>
+            <button class="delete modal-close" aria-label="close"></button>
+        </header>
+        <section class="modal-card-body" id="previewContent">
+            <!-- Preview content will be inserted here -->
+        </section>
+        <footer class="modal-card-foot">
+            <button class="button modal-close">Close</button>
+        </footer>
     </div>
 </div>
 
@@ -391,5 +556,75 @@ document.querySelectorAll('a').forEach(link => {
         });
     }
 });
+
+// Label preview functionality
+async function previewLabel(type) {
+    const zplFieldId = type === 'serial' ? 'id_serial_label_zpl' : 'id_box_label_zpl';
+    let zplCode = document.getElementById(zplFieldId).value;
+    
+    // Replace placeholders with sample data
+    zplCode = zplCode.replace(/\{\{serial\}\}/g, '000500');
+    zplCode = zplCode.replace(/\{\{part\}\}/g, '232-9983');
+    zplCode = zplCode.replace(/\{\{upc_full\}\}/g, '012345678905');
+    zplCode = zplCode.replace(/\{\{upc_11_digits\}\}/g, '01234567890');
+    
+    // Show loading modal
+    const modal = document.getElementById('previewModal');
+    const modalContent = document.getElementById('previewContent');
+    const modalTitle = document.getElementById('previewTitle');
+    
+    modalTitle.textContent = type === 'serial' ? 'Serial Label Preview' : 'Box Label Preview';
+    modalContent.innerHTML = '<div class="has-text-centered"><span class="icon is-large"><i class="fas fa-spinner fa-pulse fa-3x"></i></span><p class="mt-3">Generating preview...</p></div>';
+    modal.classList.add('is-active');
+    
+    try {
+        const response = await fetch('{% url "inventory:preview_zpl" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                zpl: zplCode,
+                label_type: type
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            modalContent.innerHTML = `
+                <figure class="image">
+                    <img src="${result.image}" alt="Label Preview" style="max-width: 100%; height: auto; border: 1px solid #ddd;">
+                </figure>
+                <div class="has-text-centered mt-3">
+                    <p class="has-text-grey">Sample data: Serial=000500, Part=232-9983, UPC=012345678901</p>
+                    <a href="https://labelary.com/viewer.html" target="_blank" class="button is-small is-link mt-2">
+                        <span class="icon"><i class="fas fa-external-link-alt"></i></span>
+                        <span>Open Labelary Viewer</span>
+                    </a>
+                </div>
+            `;
+        } else {
+            modalContent.innerHTML = `<div class="notification is-danger">Error: ${result.error}</div>`;
+        }
+    } catch (error) {
+        modalContent.innerHTML = `<div class="notification is-danger">Error: ${error.message}</div>`;
+    }
+}
+
+// Close preview modal
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('previewModal');
+    if (modal) {
+        modal.querySelector('.modal-background').addEventListener('click', () => {
+            modal.classList.remove('is-active');
+        });
+        modal.querySelector('.modal-close').addEventListener('click', () => {
+            modal.classList.remove('is-active');
+        });
+    }
+});
+
 </script>
 {% endblock %}
