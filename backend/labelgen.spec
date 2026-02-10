@@ -16,11 +16,18 @@ base_dir = Path(SPECPATH)
 # Collect Django files
 django_datas = []
 
-# Add inventory app files
+# Add inventory app files (only if they exist)
 inventory_dir = base_dir / 'inventory'
-django_datas.append((str(inventory_dir / 'templates'), 'inventory/templates'))
-django_datas.append((str(inventory_dir / 'static'), 'inventory/static'))
-django_datas.append((str(inventory_dir / 'migrations'), 'inventory/migrations'))
+templates_dir = inventory_dir / 'templates'
+static_dir = inventory_dir / 'static'
+migrations_dir = inventory_dir / 'migrations'
+
+if templates_dir.exists():
+    django_datas.append((str(templates_dir), 'inventory/templates'))
+if static_dir.exists():
+    django_datas.append((str(static_dir), 'inventory/static'))
+if migrations_dir.exists():
+    django_datas.append((str(migrations_dir), 'inventory/migrations'))
 
 # Add labelgen settings
 labelgen_dir = base_dir / 'labelgen'
