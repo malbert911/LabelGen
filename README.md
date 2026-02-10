@@ -70,12 +70,14 @@ LabelGen is a warehouse scanning system that converts bulk part number scans int
 
 ## Quick Start
 
-### Prerequisites
+### Option 1: Development Mode (Recommended for Development)
+
+**Prerequisites:**
 - Python 3.14+ (for Django backend)
 - Go 1.21+ (for printer bridge)
 - SQLite (included with Python)
 
-### Backend Setup (Django)
+**Backend Setup (Django):**
 
 ```bash
 # Create virtual environment
@@ -127,6 +129,68 @@ Bridge will be running at http://localhost:5001/
 **Debug Printer**: A "DEBUG: Save ZPL to File" printer is always available for testing without hardware. ZPL files are saved to `/tmp/labelgen/` (macOS/Linux) or `%TEMP%\labelgen` (Windows).
 
 **Note**: The bridge must run on each workstation that has printers. It discovers local USB/network printers and handles raw ZPL printing.
+
+### Option 2: Standalone Executables (For Distribution)
+
+Build standalone executables with system tray application - perfect for deploying to workstations without Python/Go installed.
+
+**Quick Build:**
+```bash
+# Windows
+build-windows.bat
+
+# macOS/Linux
+./build.sh
+```
+
+**What you get:**
+- `LabelGen.exe` - Django app with system tray (Windows)
+- `bridge.exe` - Printer bridge (Windows)
+- No Python or Go installation required on target machines!
+
+**Distribution:**
+1. Run build script to create executables
+2. Copy `backend/dist/` folder to target machine
+3. Double-click `LabelGen.exe` - tray icon appears
+4. Run `bridge.exe` in separate window
+5. Right-click tray icon → "Open LabelGen"
+
+**System Tray Features:**
+- Auto-starts Django server on launch
+- Right-click menu for quick access
+- Start/Stop server control
+- Direct links to Admin and Printer Settings
+
+See [BUILD.md](BUILD.md) for detailed build instructions, customization options, and troubleshooting.
+
+## Releases & Distribution
+
+### Download Pre-built Executables
+
+Visit the [Releases](https://github.com/your-username/LabelGen/releases) page to download pre-built executables:
+- **Windows**: `LabelGen-windows-amd64.zip`
+- **macOS (Apple Silicon)**: `LabelGen-darwin-arm64.zip`
+- **Linux**: `LabelGen-linux-amd64.zip`
+
+Each ZIP contains:
+- Platform-specific LabelGen executable (Django + system tray)
+- Platform-specific bridge executable (printer communication)
+- README.txt with setup instructions
+
+**No installation required** - just extract and run!
+
+### Creating Releases (Maintainers)
+
+Releases are automatically built using GitHub Actions:
+
+1. Create a new release on GitHub (or use `gh release create v1.0.0`)
+2. The workflow automatically:
+   - Builds Django executables for Windows, macOS, and Linux
+   - Builds Go bridge for all platforms
+   - Creates distribution packages with README files
+   - Attaches all files to the release
+
+See [RELEASE.md](RELEASE.md) for detailed release management documentation.
 
 ### Usage
 

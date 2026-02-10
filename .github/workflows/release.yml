@@ -1,0 +1,230 @@
+name: Build and Release
+
+on:
+  release:
+    types: [created]
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  build-django:
+    name: Build Django App
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_name: LabelGen.exe
+            asset_name: LabelGen-windows-amd64.exe
+          - os: macos-latest
+            artifact_name: LabelGen
+            asset_name: LabelGen-darwin-arm64
+          - os: ubuntu-latest
+            artifact_name: LabelGen
+            asset_name: LabelGen-linux-amd64
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements-build.txt
+
+      - name: Build executable
+        run: |
+          cd backend
+          python build_exe.py
+
+      - name: Set executable permissions (Unix)
+        if: runner.os != 'Windows'
+        run: chmod +x backend/dist/${{ matrix.artifact_name }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: django-${{ matrix.os }}
+          path: backend/dist/${{ matrix.artifact_name }}
+          retention-days: 1
+
+      - name: Upload to release
+        if: github.event_name == 'release'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: backend/dist/${{ matrix.artifact_name }}
+          asset_name: ${{ matrix.asset_name }}
+          asset_content_type: application/octet-stream
+
+  build-bridge:
+    name: Build Printer Bridge
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+            artifact_name: bridge.exe
+            asset_name: bridge-windows-amd64.exe
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+            artifact_name: bridge
+            asset_name: bridge-darwin-arm64
+          - os: macos-latest
+            goos: darwin
+            goarch: amd64
+            artifact_name: bridge
+            asset_name: bridge-darwin-amd64
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            artifact_name: bridge
+            asset_name: bridge-linux-amd64
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Build bridge
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          cd bridge
+          go build -o ${{ matrix.artifact_name }} main.go
+
+      - name: Set executable permissions (Unix)
+        if: runner.os != 'Windows'
+        run: chmod +x bridge/${{ matrix.artifact_name }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridge-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: bridge/${{ matrix.artifact_name }}
+          retention-days: 1
+
+      - name: Upload to release
+        if: github.event_name == 'release'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: bridge/${{ matrix.artifact_name }}
+          asset_name: ${{ matrix.asset_name }}
+          asset_content_type: application/octet-stream
+
+  create-distributions:
+    name: Create Distribution Packages
+    needs: [build-django, build-bridge]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    strategy:
+      matrix:
+        platform:
+          - name: windows
+            django: LabelGen-windows-amd64.exe
+            bridge: bridge-windows-amd64.exe
+            zip_name: LabelGen-windows-amd64.zip
+          - name: darwin-arm64
+            django: LabelGen-darwin-arm64
+            bridge: bridge-darwin-arm64
+            zip_name: LabelGen-darwin-arm64.zip
+          - name: linux
+            django: LabelGen-linux-amd64
+            bridge: bridge-linux-amd64
+            zip_name: LabelGen-linux-amd64.zip
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create distribution package
+        run: |
+          mkdir -p dist
+          
+          # Copy Django executable
+          if [ "${{ matrix.platform.name }}" = "windows" ]; then
+            cp django-windows-latest/${{ matrix.platform.django }} dist/LabelGen.exe
+          else
+            cp django-*/LabelGen dist/ 2>/dev/null || true
+            chmod +x dist/LabelGen 2>/dev/null || true
+          fi
+          
+          # Copy bridge executable
+          if [ "${{ matrix.platform.name }}" = "windows" ]; then
+            cp bridge-*/${{ matrix.platform.bridge }} dist/bridge.exe 2>/dev/null || true
+          else
+            cp bridge-*/${{ matrix.platform.bridge }} dist/bridge 2>/dev/null || true
+            chmod +x dist/bridge 2>/dev/null || true
+          fi
+          
+          # Create README
+          cat > dist/README.txt << 'EOF'
+          LabelGen - Label Generation System
+          ====================================
+          
+          Quick Start:
+          1. Extract this archive to a folder
+          2. Run LabelGen (double-click the executable)
+          3. A system tray icon will appear
+          4. Click "Open LabelGen" to access the web interface
+          
+          Files Included:
+          - LabelGen / LabelGen.exe: Main application (Django backend with system tray)
+          - bridge / bridge.exe: Printer communication bridge
+          
+          First Run:
+          - Database migrations will be applied automatically
+          - Default admin password will be set (check console output)
+          - A database file (db.sqlite3) will be created in the same folder
+          
+          Admin Access:
+          - URL: http://localhost:8001/admin/login
+          - Default password: Can be changed in Admin > Configuration
+          
+          Printer Setup:
+          - The bridge will automatically discover thermal printers
+          - A "DEBUG: Save ZPL to File" printer is always available for testing
+          - Configure printers at: http://localhost:8001/admin/printer-settings
+          
+          Support:
+          - Documentation: See BUILD.md and README.md in the repository
+          - Issues: https://github.com/your-username/LabelGen/issues
+          
+          Version: ${{ github.event.release.tag_name }}
+          Built: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          EOF
+          
+          # Create zip archive
+          cd dist
+          zip -r ../${{ matrix.platform.zip_name }} .
+          cd ..
+
+      - name: Upload distribution package to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ${{ matrix.platform.zip_name }}
+          asset_name: ${{ matrix.platform.zip_name }}
+          asset_content_type: application/zip
