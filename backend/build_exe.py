@@ -19,7 +19,7 @@ def check_package(package_name, install_name=None):
     
     spec = importlib.util.find_spec(package_name)
     if spec is None:
-        print(f"\n❌ {install_name} not installed!")
+        print(f"\n[ERROR] {install_name} not installed!")
         print(f"Install with: pip install {install_name}")
         return False
     return True
@@ -44,14 +44,14 @@ def main():
         missing.append('Pillow')
     
     if missing:
-        print(f"\n❌ Missing packages: {', '.join(missing)}")
+        print(f"\n[ERROR] Missing packages: {', '.join(missing)}")
         print(f"Install with: pip install {' '.join(missing)}")
         sys.exit(1)
     
-    print("\n✓ All required packages found")
+    print("\n[OK] All required packages found")
     
     # Clean previous builds
-    print("\n🧹 Cleaning previous builds...")
+    print("\nCleaning previous builds...")
     for dir_name in ['build', 'dist']:
         dir_path = base_dir / dir_name
         if dir_path.exists():
@@ -61,7 +61,7 @@ def main():
     # Remove old spec file if using auto-generation
     spec_file = base_dir / 'labelgen.spec'
     
-    print(f"\n🔨 Building with PyInstaller...")
+    print(f"\nBuilding with PyInstaller...")
     print(f"  Using spec file: {spec_file}")
     
     # Run PyInstaller
@@ -72,7 +72,7 @@ def main():
             cwd=str(base_dir)
         )
     except subprocess.CalledProcessError as e:
-        print(f"\n❌ Build failed: {e}")
+        print(f"\n[ERROR] Build failed: {e}")
         sys.exit(1)
     
     # Check if build succeeded (platform-specific executable name)
@@ -83,11 +83,11 @@ def main():
     
     exe_path = base_dir / 'dist' / exe_name
     if not exe_path.exists():
-        print(f"\n❌ Build failed - executable not found at {exe_path}")
+        print(f"\n[ERROR] Build failed - executable not found at {exe_path}")
         sys.exit(1)
     
     print("\n" + "=" * 60)
-    print("✅ Build successful!")
+    print("[SUCCESS] Build successful!")
     print("=" * 60)
     print(f"\nExecutable: {exe_path}")
     print(f"Size: {exe_path.stat().st_size / (1024*1024):.1f} MB")
@@ -138,13 +138,13 @@ Note: The server runs on http://127.0.0.1:8001/
 For support, see the documentation in the source repository.
 """)
     
-    print(f"\n📝 Created README.txt in dist/")
+    print(f"\nCreated README.txt in dist/")
     
-    print("\n📦 Distribution files:")
+    print("\nDistribution files:")
     print(f"  - LabelGen.exe ({exe_path.stat().st_size / (1024*1024):.1f} MB)")
     print(f"  - README.txt")
     
-    print("\n💡 Next steps:")
+    print("\nNext steps:")
     print("  1. Test the executable: cd dist && ./LabelGen.exe")
     print("  2. Make sure the Printer Bridge is also running")
     print("  3. Distribute the dist/ folder to users")
