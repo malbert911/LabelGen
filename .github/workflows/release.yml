@@ -148,16 +148,10 @@ jobs:
       matrix:
         platform:
           - name: windows
-            django: LabelGen-windows-amd64.exe
-            bridge: bridge-windows-amd64.exe
             zip_name: LabelGen-windows-amd64.zip
           - name: darwin-arm64
-            django: LabelGen-darwin-arm64
-            bridge: bridge-darwin-arm64
             zip_name: LabelGen-darwin-arm64.zip
           - name: linux
-            django: LabelGen-linux-amd64
-            bridge: bridge-linux-amd64
             zip_name: LabelGen-linux-amd64.zip
 
     steps:
@@ -171,20 +165,26 @@ jobs:
         run: |
           mkdir -p dist
           
-          # Copy Django executable
+          # Copy Django executable based on platform
           if [ "${{ matrix.platform.name }}" = "windows" ]; then
-            cp django-windows-latest/${{ matrix.platform.django }} dist/LabelGen.exe
-          else
-            cp django-*/LabelGen dist/ 2>/dev/null || true
-            chmod +x dist/LabelGen 2>/dev/null || true
+            cp django-windows-latest/LabelGen.exe dist/LabelGen.exe
+          elif [ "${{ matrix.platform.name }}" = "darwin-arm64" ]; then
+            cp django-macos-latest/LabelGen dist/LabelGen
+            chmod +x dist/LabelGen
+          elif [ "${{ matrix.platform.name }}" = "linux" ]; then
+            cp django-ubuntu-latest/LabelGen dist/LabelGen
+            chmod +x dist/LabelGen
           fi
           
-          # Copy bridge executable
+          # Copy bridge executable based on platform
           if [ "${{ matrix.platform.name }}" = "windows" ]; then
-            cp bridge-*/${{ matrix.platform.bridge }} dist/bridge.exe 2>/dev/null || true
-          else
-            cp bridge-*/${{ matrix.platform.bridge }} dist/bridge 2>/dev/null || true
-            chmod +x dist/bridge 2>/dev/null || true
+            cp bridge-windows-amd64/bridge.exe dist/bridge.exe
+          elif [ "${{ matrix.platform.name }}" = "darwin-arm64" ]; then
+            cp bridge-darwin-arm64/bridge dist/bridge
+            chmod +x dist/bridge
+          elif [ "${{ matrix.platform.name }}" = "linux" ]; then
+            cp bridge-linux-amd64/bridge dist/bridge
+            chmod +x dist/bridge
           fi
           
           # Create README
