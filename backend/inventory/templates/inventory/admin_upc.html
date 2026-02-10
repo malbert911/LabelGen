@@ -35,18 +35,18 @@
             <span>Serial Number Configuration</span>
         </span>
     </h2>
-    
+
     {% if config_updated %}
-        <div class="notification is-success">
-            <button class="delete"></button>
-            Configuration updated successfully!
-        </div>
+    <div class="notification is-success">
+        <button class="delete"></button>
+        Configuration updated successfully!
+    </div>
     {% endif %}
-    
+
     <form method="post">
         {% csrf_token %}
         <input type="hidden" name="update_config" value="1">
-        
+
         <div class="columns">
             <div class="column">
                 <div class="field">
@@ -55,11 +55,11 @@
                         {{ config_form.serial_digits }}
                     </div>
                     {% if config_form.serial_digits.help_text %}
-                        <p class="help">{{ config_form.serial_digits.help_text }}</p>
+                    <p class="help">{{ config_form.serial_digits.help_text }}</p>
                     {% endif %}
                 </div>
             </div>
-            
+
             <div class="column">
                 <div class="field">
                     <label class="label">{{ config_form.current_serial.label }}</label>
@@ -67,12 +67,12 @@
                         {{ config_form.current_serial }}
                     </div>
                     {% if config_form.current_serial.help_text %}
-                        <p class="help">{{ config_form.current_serial.help_text }}</p>
+                    <p class="help">{{ config_form.current_serial.help_text }}</p>
                     {% endif %}
                 </div>
             </div>
         </div>
-        
+
         <div class="field">
             <div class="control">
                 <button type="submit" class="button is-primary">
@@ -92,18 +92,18 @@
             <span>Change Admin Password</span>
         </span>
     </h2>
-    
+
     {% if password_updated %}
-        <div class="notification is-success">
-            <button class="delete"></button>
-            Password updated successfully!
-        </div>
+    <div class="notification is-success">
+        <button class="delete"></button>
+        Password updated successfully!
+    </div>
     {% endif %}
-    
+
     <form method="post">
         {% csrf_token %}
         <input type="hidden" name="update_password" value="1">
-        
+
         <div class="columns">
             <div class="column is-half">
                 <div class="field">
@@ -115,11 +115,11 @@
                         </span>
                     </div>
                     {% if password_form.new_password.errors %}
-                        <p class="help is-danger">{{ password_form.new_password.errors.0 }}</p>
+                    <p class="help is-danger">{{ password_form.new_password.errors.0 }}</p>
                     {% endif %}
                 </div>
             </div>
-            
+
             <div class="column is-half">
                 <div class="field">
                     <label class="label">{{ password_form.confirm_password.label }}</label>
@@ -130,18 +130,18 @@
                         </span>
                     </div>
                     {% if password_form.confirm_password.errors %}
-                        <p class="help is-danger">{{ password_form.confirm_password.errors.0 }}</p>
+                    <p class="help is-danger">{{ password_form.confirm_password.errors.0 }}</p>
                     {% endif %}
                 </div>
             </div>
         </div>
-        
+
         {% if password_form.non_field_errors %}
-            <div class="notification is-danger is-light">
-                {{ password_form.non_field_errors.0 }}
-            </div>
+        <div class="notification is-danger is-light">
+            {{ password_form.non_field_errors.0 }}
+        </div>
         {% endif %}
-        
+
         <div class="field">
             <div class="control">
                 <button type="submit" class="button is-warning">
@@ -161,31 +161,40 @@
             <span>ZPL Label Templates</span>
         </span>
     </h2>
-    
+
     {% if template_updated %}
-        <div class="notification is-success">
-            <button class="delete"></button>
-            Label templates updated successfully!
-        </div>
+    <div class="notification is-success">
+        <button class="delete"></button>
+        Label templates updated successfully!
+    </div>
     {% endif %}
-    
+
     <div class="notification is-info is-light">
         <p class="has-text-weight-bold">Template Variables:</p>
         <ul>
-            <li><code>{% templatetag openvariable %}serial{% templatetag closevariable %}</code> - Serial number (e.g., 000500)</li>
-            <li><code>{% templatetag openvariable %}part{% templatetag closevariable %}</code> - Part number (e.g., 232-9983)</li>
-            <li><code>{% templatetag openvariable %}upc_full{% templatetag closevariable %}</code> - Full 12-digit UPC (e.g., 012345678905)</li>
-            <li><code>{% templatetag openvariable %}upc_11_digits{% templatetag closevariable %}</code> - First 11 digits of UPC for barcode (e.g., 01234567890)</li>
+            <li><code>{% templatetag openvariable %}serial{% templatetag closevariable %}</code> - Serial number (e.g.,
+                000500)</li>
+            <li><code>{% templatetag openvariable %}part{% templatetag closevariable %}</code> - Part number (e.g.,
+                232-9983)</li>
+            <li><code>{% templatetag openvariable %}upc_full{% templatetag closevariable %}</code> - Full 12-digit UPC
+                (e.g., 012345678905)</li>
+            <li><code>{% templatetag openvariable %}upc_11_digits{% templatetag closevariable %}</code> - First 11
+                digits of UPC for barcode (e.g., 01234567890)</li>
         </ul>
-        <p class="mt-2"><strong>Preview:</strong> Click preview buttons to render labels locally. You can also test ZPL at <a href="https://labelary.com/viewer.html" target="_blank">Labelary Viewer</a>.</p>
-        <p class="mt-2"><strong>UPC-A Barcode Example:</strong> <code>^FO100,100^BY2^BUN,70^FD{% templatetag openvariable %}upc_11_digits{% templatetag closevariable %}^FS</code></p>
-        <p class="mt-1"><strong>UPC Text Example:</strong> <code>^FO100,200^A0N,25,25^FDUPC: {% templatetag openvariable %}upc_full{% templatetag closevariable %}^FS</code></p>
+        <p class="mt-2"><strong>Preview:</strong> Click preview buttons to render labels locally. You can also test ZPL
+            at <a href="https://labelary.com/viewer.html" target="_blank">Labelary Viewer</a>.</p>
+        <p class="mt-2"><strong>UPC-A Barcode Example:</strong>
+            <code>^FO100,100^BY2^BUN,70^FD{% templatetag openvariable %}upc_11_digits{% templatetag closevariable %}^FS</code>
+        </p>
+        <p class="mt-1"><strong>UPC Text Example:</strong>
+            <code>^FO100,200^A0N,25,25^FDUPC: {% templatetag openvariable %}upc_full{% templatetag closevariable %}^FS</code>
+        </p>
     </div>
-    
+
     <form method="post">
         {% csrf_token %}
         <input type="hidden" name="update_templates" value="1">
-        
+
         <div class="columns">
             <div class="column">
                 <div class="field">
@@ -199,7 +208,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="columns">
             <div class="column is-half">
                 <h3 class="subtitle is-5 mb-3">
@@ -208,7 +217,7 @@
                         <span>Serial Number Label</span>
                     </span>
                 </h3>
-                
+
                 <div class="columns is-mobile">
                     <div class="column">
                         <div class="field">
@@ -229,7 +238,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="field">
                     <label class="label">{{ template_form.serial_label_zpl.label }}</label>
                     <div class="control">
@@ -242,7 +251,7 @@
                     </button>
                 </div>
             </div>
-            
+
             <div class="column is-half">
                 <h3 class="subtitle is-5 mb-3">
                     <span class="icon-text">
@@ -250,7 +259,7 @@
                         <span>Box/Shipping Label</span>
                     </span>
                 </h3>
-                
+
                 <div class="columns is-mobile">
                     <div class="column">
                         <div class="field">
@@ -271,7 +280,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="field">
                     <label class="label">{{ template_form.box_label_zpl.label }}</label>
                     <div class="control">
@@ -285,11 +294,7 @@
                 </div>
             </div>
         </div>
-                    </button>
-                </div>
-            </div>
-        </div>
-        
+
         <div class="field">
             <div class="control">
                 <button type="submit" class="button is-primary">
@@ -309,7 +314,7 @@
             <span>Bulk UPC Upload</span>
         </span>
     </h2>
-    
+
     <div class="notification is-info is-light">
         <p class="has-text-weight-bold">CSV Format:</p>
         <p>Upload a CSV file with two columns: <code>PartNumber,UPC</code></p>
@@ -325,7 +330,7 @@
             </a>
         </p>
     </div>
-    
+
     <div class="file has-name is-boxed">
         <label class="file-label">
             <input class="file-input" type="file" id="csvFile" accept=".csv">
@@ -342,14 +347,14 @@
             </span>
         </label>
     </div>
-    
+
     <div class="mt-3">
         <button class="button is-primary" id="uploadBtn" disabled>
             <span class="icon"><i class="fas fa-cloud-upload-alt"></i></span>
             <span>Upload & Process</span>
         </button>
     </div>
-    
+
     <div id="uploadResults" class="mt-4" style="display: none;"></div>
 </div>
 
@@ -361,11 +366,11 @@
             <span>Product UPC Management</span>
         </span>
     </h2>
-    
+
     <p class="mb-3">
         <strong>{{ products|length }}</strong> product(s) in database
     </p>
-    
+
     <div class="table-container">
         <table class="table is-fullwidth is-striped is-hoverable">
             <thead>
@@ -380,15 +385,11 @@
                 <tr data-part="{{ product.part_number }}">
                     <td class="is-family-monospace">{{ product.part_number }}</td>
                     <td>
-                        <input type="text" 
-                               class="input upc-input" 
-                               value="{{ product.upc|default:'' }}"
-                               data-part="{{ product.part_number }}"
-                               placeholder="12-digit UPC">
+                        <input type="text" class="input upc-input" value="{{ product.upc|default:'' }}"
+                            data-part="{{ product.part_number }}" placeholder="12-digit UPC">
                     </td>
                     <td>
-                        <button class="button is-small is-success save-upc-btn" 
-                                data-part="{{ product.part_number }}">
+                        <button class="button is-small is-success save-upc-btn" data-part="{{ product.part_number }}">
                             <span class="icon"><i class="fas fa-save"></i></span>
                             <span>Save</span>
                         </button>
@@ -427,173 +428,173 @@
 
 {% block extra_js %}
 <script>
-// File input handling
-const fileInput = document.getElementById('csvFile');
-const fileName = document.getElementById('fileName');
-const uploadBtn = document.getElementById('uploadBtn');
+    // File input handling
+    const fileInput = document.getElementById('csvFile');
+    const fileName = document.getElementById('fileName');
+    const uploadBtn = document.getElementById('uploadBtn');
 
-fileInput.addEventListener('change', function(e) {
-    if (e.target.files.length > 0) {
-        fileName.textContent = e.target.files[0].name;
-        uploadBtn.disabled = false;
-    } else {
-        fileName.textContent = 'No file selected';
-        uploadBtn.disabled = true;
-    }
-});
-
-// CSV upload
-uploadBtn.addEventListener('click', async function() {
-    const file = fileInput.files[0];
-    if (!file) return;
-    
-    const btn = this;
-    btn.classList.add('is-loading');
-    btn.disabled = true;
-    
-    const formData = new FormData();
-    formData.append('csv_file', file);
-    
-    try {
-        const response = await fetch('{% url "inventory:admin_upload_csv" %}', {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}'
-            },
-            body: formData
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            let message = `✅ Successfully processed!<br>`;
-            message += `Updated: ${result.updated} | Created: ${result.created}`;
-            
-            if (result.errors && result.errors.length > 0) {
-                message += `<br><br><strong>Warnings:</strong><ul>`;
-                result.errors.forEach(err => {
-                    message += `<li>${err}</li>`;
-                });
-                message += `</ul>`;
-            }
-            
-            showUploadResult(message, 'success');
-            
-            // Reload page after 2 seconds
-            setTimeout(() => location.reload(), 2000);
+    fileInput.addEventListener('change', function (e) {
+        if (e.target.files.length > 0) {
+            fileName.textContent = e.target.files[0].name;
+            uploadBtn.disabled = false;
         } else {
-            showUploadResult(`❌ Error: ${result.error}`, 'danger');
+            fileName.textContent = 'No file selected';
+            uploadBtn.disabled = true;
         }
-    } catch (error) {
-        showUploadResult(`❌ Error: ${error.message}`, 'danger');
-    } finally {
-        btn.classList.remove('is-loading');
-        btn.disabled = false;
-    }
-});
+    });
 
-function showUploadResult(message, type) {
-    const resultsDiv = document.getElementById('uploadResults');
-    resultsDiv.innerHTML = `<div class="notification is-${type}">${message}</div>`;
-    resultsDiv.style.display = 'block';
-}
+    // CSV upload
+    uploadBtn.addEventListener('click', async function () {
+        const file = fileInput.files[0];
+        if (!file) return;
 
-// Individual UPC save buttons
-document.querySelectorAll('.save-upc-btn').forEach(btn => {
-    btn.addEventListener('click', async function() {
-        const partNumber = this.getAttribute('data-part');
-        const input = document.querySelector(`.upc-input[data-part="${partNumber}"]`);
-        const upc = input.value.trim();
-        
-        this.classList.add('is-loading');
-        
+        const btn = this;
+        btn.classList.add('is-loading');
+        btn.disabled = true;
+
+        const formData = new FormData();
+        formData.append('csv_file', file);
+
         try {
-            const response = await fetch('{% url "inventory:admin_update_upc" %}', {
+            const response = await fetch('{% url "inventory:admin_upload_csv" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                let message = `✅ Successfully processed!<br>`;
+                message += `Updated: ${result.updated} | Created: ${result.created}`;
+
+                if (result.errors && result.errors.length > 0) {
+                    message += `<br><br><strong>Warnings:</strong><ul>`;
+                    result.errors.forEach(err => {
+                        message += `<li>${err}</li>`;
+                    });
+                    message += `</ul>`;
+                }
+
+                showUploadResult(message, 'success');
+
+                // Reload page after 2 seconds
+                setTimeout(() => location.reload(), 2000);
+            } else {
+                showUploadResult(`❌ Error: ${result.error}`, 'danger');
+            }
+        } catch (error) {
+            showUploadResult(`❌ Error: ${error.message}`, 'danger');
+        } finally {
+            btn.classList.remove('is-loading');
+            btn.disabled = false;
+        }
+    });
+
+    function showUploadResult(message, type) {
+        const resultsDiv = document.getElementById('uploadResults');
+        resultsDiv.innerHTML = `<div class="notification is-${type}">${message}</div>`;
+        resultsDiv.style.display = 'block';
+    }
+
+    // Individual UPC save buttons
+    document.querySelectorAll('.save-upc-btn').forEach(btn => {
+        btn.addEventListener('click', async function () {
+            const partNumber = this.getAttribute('data-part');
+            const input = document.querySelector(`.upc-input[data-part="${partNumber}"]`);
+            const upc = input.value.trim();
+
+            this.classList.add('is-loading');
+
+            try {
+                const response = await fetch('{% url "inventory:admin_update_upc" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({
+                        part_number: partNumber,
+                        upc: upc
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showNotification(`✅ UPC updated for ${partNumber}`, 'success');
+                    input.classList.add('is-success');
+                    setTimeout(() => input.classList.remove('is-success'), 2000);
+                } else {
+                    showNotification(`❌ Error: ${result.error}`, 'danger');
+                }
+            } catch (error) {
+                showNotification(`❌ Error: ${error.message}`, 'danger');
+            } finally {
+                this.classList.remove('is-loading');
+            }
+        });
+    });
+
+    // Auto-close success notifications
+    document.querySelectorAll('.notification .delete').forEach(btn => {
+        btn.addEventListener('click', function () {
+            this.parentElement.remove();
+        });
+    });
+
+    // Auto-logout when clicking non-admin navigation links
+    document.querySelectorAll('a').forEach(link => {
+        if (!link.href.includes('admin') && !link.href.includes('#')) {
+            link.addEventListener('click', function (e) {
+                // Logout when clicking links to leave admin area
+                fetch('{% url "inventory:admin_logout" %}', {
+                    method: 'GET',
+                    keepalive: true
+                });
+            });
+        }
+    });
+
+    // Label preview functionality
+    async function previewLabel(type) {
+        const zplFieldId = type === 'serial' ? 'id_serial_label_zpl' : 'id_box_label_zpl';
+        let zplCode = document.getElementById(zplFieldId).value;
+
+        // Replace placeholders with sample data
+        zplCode = zplCode.replace(/\{\{serial\}\}/g, '000500');
+        zplCode = zplCode.replace(/\{\{part\}\}/g, '232-9983');
+        zplCode = zplCode.replace(/\{\{upc_full\}\}/g, '012345678905');
+        zplCode = zplCode.replace(/\{\{upc_11_digits\}\}/g, '01234567890');
+
+        // Show loading modal
+        const modal = document.getElementById('previewModal');
+        const modalContent = document.getElementById('previewContent');
+        const modalTitle = document.getElementById('previewTitle');
+
+        modalTitle.textContent = type === 'serial' ? 'Serial Label Preview' : 'Box Label Preview';
+        modalContent.innerHTML = '<div class="has-text-centered"><span class="icon is-large"><i class="fas fa-spinner fa-pulse fa-3x"></i></span><p class="mt-3">Generating preview...</p></div>';
+        modal.classList.add('is-active');
+
+        try {
+            const response = await fetch('{% url "inventory:preview_zpl" %}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token }}'
                 },
                 body: JSON.stringify({
-                    part_number: partNumber,
-                    upc: upc
+                    zpl: zplCode,
+                    label_type: type
                 })
             });
-            
+
             const result = await response.json();
-            
+
             if (result.success) {
-                showNotification(`✅ UPC updated for ${partNumber}`, 'success');
-                input.classList.add('is-success');
-                setTimeout(() => input.classList.remove('is-success'), 2000);
-            } else {
-                showNotification(`❌ Error: ${result.error}`, 'danger');
-            }
-        } catch (error) {
-            showNotification(`❌ Error: ${error.message}`, 'danger');
-        } finally {
-            this.classList.remove('is-loading');
-        }
-    });
-});
-
-// Auto-close success notifications
-document.querySelectorAll('.notification .delete').forEach(btn => {
-    btn.addEventListener('click', function() {
-        this.parentElement.remove();
-    });
-});
-
-// Auto-logout when clicking non-admin navigation links
-document.querySelectorAll('a').forEach(link => {
-    if (!link.href.includes('admin') && !link.href.includes('#')) {
-        link.addEventListener('click', function(e) {
-            // Logout when clicking links to leave admin area
-            fetch('{% url "inventory:admin_logout" %}', {
-                method: 'GET',
-                keepalive: true
-            });
-        });
-    }
-});
-
-// Label preview functionality
-async function previewLabel(type) {
-    const zplFieldId = type === 'serial' ? 'id_serial_label_zpl' : 'id_box_label_zpl';
-    let zplCode = document.getElementById(zplFieldId).value;
-    
-    // Replace placeholders with sample data
-    zplCode = zplCode.replace(/\{\{serial\}\}/g, '000500');
-    zplCode = zplCode.replace(/\{\{part\}\}/g, '232-9983');
-    zplCode = zplCode.replace(/\{\{upc_full\}\}/g, '012345678905');
-    zplCode = zplCode.replace(/\{\{upc_11_digits\}\}/g, '01234567890');
-    
-    // Show loading modal
-    const modal = document.getElementById('previewModal');
-    const modalContent = document.getElementById('previewContent');
-    const modalTitle = document.getElementById('previewTitle');
-    
-    modalTitle.textContent = type === 'serial' ? 'Serial Label Preview' : 'Box Label Preview';
-    modalContent.innerHTML = '<div class="has-text-centered"><span class="icon is-large"><i class="fas fa-spinner fa-pulse fa-3x"></i></span><p class="mt-3">Generating preview...</p></div>';
-    modal.classList.add('is-active');
-    
-    try {
-        const response = await fetch('{% url "inventory:preview_zpl" %}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}'
-            },
-            body: JSON.stringify({
-                zpl: zplCode,
-                label_type: type
-            })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            modalContent.innerHTML = `
+                modalContent.innerHTML = `
                 <figure class="image">
                     <img src="${result.image}" alt="Label Preview" style="max-width: 100%; height: auto; border: 1px solid #ddd;">
                 </figure>
@@ -605,26 +606,26 @@ async function previewLabel(type) {
                     </a>
                 </div>
             `;
-        } else {
-            modalContent.innerHTML = `<div class="notification is-danger">Error: ${result.error}</div>`;
+            } else {
+                modalContent.innerHTML = `<div class="notification is-danger">Error: ${result.error}</div>`;
+            }
+        } catch (error) {
+            modalContent.innerHTML = `<div class="notification is-danger">Error: ${error.message}</div>`;
         }
-    } catch (error) {
-        modalContent.innerHTML = `<div class="notification is-danger">Error: ${error.message}</div>`;
     }
-}
 
-// Close preview modal
-document.addEventListener('DOMContentLoaded', function() {
-    const modal = document.getElementById('previewModal');
-    if (modal) {
-        modal.querySelector('.modal-background').addEventListener('click', () => {
-            modal.classList.remove('is-active');
-        });
-        modal.querySelector('.modal-close').addEventListener('click', () => {
-            modal.classList.remove('is-active');
-        });
-    }
-});
+    // Close preview modal
+    document.addEventListener('DOMContentLoaded', function () {
+        const modal = document.getElementById('previewModal');
+        if (modal) {
+            modal.querySelector('.modal-background').addEventListener('click', () => {
+                modal.classList.remove('is-active');
+            });
+            modal.querySelector('.modal-close').addEventListener('click', () => {
+                modal.classList.remove('is-active');
+            });
+        }
+    });
 
 </script>
 {% endblock %}

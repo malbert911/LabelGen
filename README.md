@@ -15,35 +15,58 @@ LabelGen is a warehouse scanning system that converts bulk part number scans int
 
 ## Features
 
-### ✅ Completed (Phases 1-4)
-- **Bulk Serial Generation**: Hands-free scanning interface that generates sequential serial numbers
+### ✅ Completed (Phases 1-5)
+
+**Phase 1-3: Foundation & Core Features**
+- **Bulk Serial Generation**: Hands-free scanning interface with sequential serial numbers
+  - Spacebar keyboard shortcut for generate button
+  - Auto-print after generation
+  - Auto-reset form for continuous workflow
+  - Real-time "Next Serial" display updates
 - **Box Label Printing**: Scan serial numbers to print shipping labels
+  - Enter/Tab key support for barcode scanners
+  - Auto-print after lookup
+  - "Lookup and Print" single-click workflow
 - **Serial Reprint**: Look up and reprint existing serial number labels
-- **Admin Interface**: Password-protected UPC management with CSV upload, manual editing, and ZPL template editor
+- **Admin Interface**: Password-protected UPC management
+  - CSV upload for bulk UPC assignment
+  - Manual inline editing with AJAX save
+  - ZPL template editor with live preview
+  - Serial number configuration
+  - Password management
 - **Dark Mode**: Auto-detecting theme with manual toggle
-- **Printer Settings**: Browser-based printer selection (localStorage per workstation)
-- **Printer Bridge**: Fully functional cross-platform service
-  - Windows: PowerShell Get-Printer + wmic fallback for printer discovery
-  - macOS/Linux: CUPS lpstat for printer discovery
-  - Direct raw ZPL printing to USB/network printers
-  - Unique printer IDs handle duplicate models
-- **ZPL Label Templates**: Editable templates with live preview
-  - Serial labels (4x2") with Code 128 barcodes
-  - Box labels (4x3") with UPC-A barcodes
-  - Variable substitution: {{serial}}, {{part}}, {{upc_full}}, {{upc_11_digits}}
-  - Labelary API integration for preview rendering
 
-### 🚧 In Progress (Phase 5)
-- **Print Button Integration**: Adding print functionality to UI pages
-  - Printer dropdown selection
-  - "Print" buttons on bulk generate, box label, reprint pages
-  - Progress indicators for batch printing
+**Phase 4: Printer Bridge (Go)**
+- Fully functional cross-platform service (localhost:5001)
+- Real printer discovery:
+  - Windows: PowerShell Get-Printer + wmic fallback
+  - macOS/Linux: CUPS lpstat integration
+  - Detects USB, Network (TCP/IP), Network (WSD) printers
+- Direct raw ZPL printing (no drivers needed)
+- Unique printer IDs handle duplicate models
+- Debug printer for testing without hardware
+  - Saves ZPL to /tmp/labelgen/ (macOS/Linux) or %TEMP%\labelgen (Windows)
+  - Always available in printer list
 
-### 📋 Upcoming (Phase 6)
-- Testing with actual Datamax O'Neil E-4204B printer
-- Error handling and edge cases
-- Windows deployment guide
-- Final polish
+**Phase 4.5: ZPL Label Templates**
+- Editable templates with live Labelary preview
+- Serial labels (4x2") with Code 128 barcodes
+- Box labels (4x3") with UPC-A barcodes
+- Variable substitution: {{serial}}, {{part}}, {{upc_full}}, {{upc_11_digits}}
+
+**Phase 5: Print Integration** ✅
+- PrinterBridge JavaScript utility in base.html
+- Browser-based printer selection (localStorage per workstation)
+- Silent mode for batch printing (no notification spam)
+- Timeout handling with helpful error messages
+- All pages fully integrated with print functionality
+
+### 📋 Ready for Phase 6
+- Hardware testing with actual Datamax O'Neil E-4204B printer
+- Barcode scannability verification
+- Windows deployment (.exe compilation)
+- Production deployment guide
+- User training materials
 
 ## Quick Start
 
@@ -94,9 +117,14 @@ go run main.go
 # Or build a binary
 go build -o labelgen-bridge
 ./labelgen-bridge  # or labelgen-bridge.exe on Windows
+
+# For Windows deployment:
+GOOS=windows GOARCH=amd64 go build -o bridge.exe
 ```
 
 Bridge will be running at http://localhost:5001/
+
+**Debug Printer**: A "DEBUG: Save ZPL to File" printer is always available for testing without hardware. ZPL files are saved to `/tmp/labelgen/` (macOS/Linux) or `%TEMP%\labelgen` (Windows).
 
 **Note**: The bridge must run on each workstation that has printers. It discovers local USB/network printers and handles raw ZPL printing.
 
@@ -105,20 +133,30 @@ Bridge will be running at http://localhost:5001/
 1. **Configure Printers**: Visit http://127.0.0.1:8001/printer-settings/
    - Select printer for serial labels
    - Select printer for box labels
-   - Settings saved in browser localStorage
+   - Settings saved in browser localStorage (per workstation)
+   - Use debug printer for testing without hardware
 
 2. **Bulk Generation**: http://127.0.0.1:8001/generate/
-   - Scan part number → Enter quantity → Repeat
+   - Scan part number → quantity → repeat
+   - Press Spacebar (or click button) to generate and print
+   - Form auto-resets for next batch
    - Always one empty row ahead for continuous scanning
-   - Generates sequential serial numbers
+   - Next Serial display updates after each batch
 
 3. **Box Labels**: http://127.0.0.1:8001/box-label/
-   - Scan serial number to print shipping label
+   - Scan serial number (Enter/Tab triggers lookup)
+   - Automatically prints after lookup
+   - Form auto-resets for next scan
 
-4. **Admin**: http://127.0.0.1:8001/admin-upc/
+4. **Reprint**: http://127.0.0.1:8001/reprint/
+   - Search for existing serial number
+   - Reprint inventory label
+
+5. **Admin**: http://127.0.0.1:8001/admin-upc/
    - Configure next serial number and digit count
    - Upload UPC codes via CSV
-   - Edit UPC codes manually
+   - Edit UPC codes manually with inline editing
+   - Edit ZPL templates with live preview
    - Change admin password
 
 ## Architecture
@@ -274,10 +312,17 @@ LabelGen/
 ## Development Notes
 
 ### Current State (Feb 9, 2026)
-- Django backend fully functional (Phases 1-3 complete)
-- Go bridge production-ready with real printer discovery and printing (Phase 4 complete)
-- ZPL templates implemented with live preview
-- Ready for UI print button integration (Phase 5)
+- **Phases 1-5**: ✅ Complete and production-ready
+- Django backend fully functional with optimized workflows
+- Go bridge with real printer discovery and printing
+- ZPL templates with live Labelary preview
+- Debug printer for testing without hardware
+- Full print integration with streamlined UX:
+  - Single-click generate+print workflows
+  - Auto-form reset after operations
+  - Keyboard shortcuts (Spacebar, Enter, Tab)
+  - Silent batch printing (no notification spam)
+- **Ready for Phase 6**: Hardware testing and deployment
 
 ### Printer Support
 - **Tested**: Datamax O'Neil eClass Mark III E-4204B (via PL-Z/ZPL emulation)
