@@ -9,6 +9,20 @@ import sys
 import shutil
 import subprocess
 from pathlib import Path
+import importlib.util
+
+
+def check_package(package_name, install_name=None):
+    """Check if a package is installed without importing it."""
+    if install_name is None:
+        install_name = package_name
+    
+    spec = importlib.util.find_spec(package_name)
+    if spec is None:
+        print(f"\n❌ {install_name} not installed!")
+        print(f"Install with: pip install {install_name}")
+        return False
+    return True
 
 
 def main():
@@ -20,21 +34,18 @@ def main():
     base_dir = Path(__file__).resolve().parent
     os.chdir(base_dir)
     
-    # Check if PyInstaller is installed
-    try:
-        import PyInstaller
-    except ImportError:
-        print("\n❌ PyInstaller not installed!")
-        print("Install with: pip install pyinstaller")
-        sys.exit(1)
+    # Check if required packages are installed (without importing them)
+    missing = []
+    if not check_package('PyInstaller', 'pyinstaller'):
+        missing.append('pyinstaller')
+    if not check_package('pystray'):
+        missing.append('pystray')
+    if not check_package('PIL', 'Pillow'):
+        missing.append('Pillow')
     
-    # Check if required packages are installed
-    try:
-        import pystray
-        import PIL
-    except ImportError:
-        print("\n❌ Required packages not installed!")
-        print("Install with: pip install pystray Pillow")
+    if missing:
+        print(f"\n❌ Missing packages: {', '.join(missing)}")
+        print(f"Install with: pip install {' '.join(missing)}")
         sys.exit(1)
     
     print("\n✓ All required packages found")
