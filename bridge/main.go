@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -309,8 +308,13 @@ func Print(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	zplData, ok := req.Data["zpl"].(string)
-	if !ok || zplData == "" {
+	zplData := strings.TrimSpace(req.ZPL)
+	if zplData == "" {
+		if zplFromData, ok := req.Data["zpl"].(string); ok {
+			zplData = strings.TrimSpace(zplFromData)
+		}
+	}
+	if zplData == "" {
 		respondError(w, http.StatusBadRequest, "No ZPL data provided")
 		return
 	}
@@ -373,16 +377,28 @@ func sendZPLToPrinter(printerName, zplData string) error {
 }
 
 func sendZPLToPrinterWindows(printerName, zplData string) error {
-	file, err := os.OpenFile(fmt.Sprintf(`\\.\%s`, printerName), os.O_WRONLY, 0)
+	tmpFile, err := os.CreateTemp("", "label-*.zpl")
 	if err != nil {
-		return fmt.Errorf("failed to open printer: %w", err)
+		return fmt.Errorf("failed to create temp file: %w", err)
 	}
-	defer file.Close()
+	defer os.Remove(tmpFile.Name())
 
-	if _, err := io.WriteString(file, zplData); err != nil {
-		return fmt.Errorf("failed to write: %w", err)
+	if _, err := tmpFile.WriteString(zplData); err != nil {
+		tmpFile.Close()
+		return fmt.Errorf("failed to write temp file: %w", err)
 	}
-	log.Printf("Printed %d bytes to %s", len(zplData), printerName)
+	tmpFile.Close()
+
+	cmd := exec.Command("cmd", "/C", "print", "/D:"+printerName, tmpFile.Name())
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("print command failed: %w (stdout=%s stderr=%s)", err, out.String(), stderr.String())
+	}
+
+	log.Printf("Printed %d bytes to %s (via print command)", len(zplData), printerName)
 	return nil
 }
 
