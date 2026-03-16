@@ -9,6 +9,7 @@ import csv
 import base64
 import urllib.request
 import urllib.error
+import re
 
 
 def home(request):
@@ -394,6 +395,15 @@ def generate_label_zpl(request):
         
         zpl_code = zpl_code.replace('{{upc_full}}', upc_full)
         zpl_code = zpl_code.replace('{{upc_11_digits}}', upc_11)
+        
+        # Handle UPC zone: if no UPC, remove the entire zone between markers
+        if not upc:
+            # Remove everything between {{upc_zone_start}} and {{upc_zone_end}} when no UPC
+            zpl_code = re.sub(r'{{upc_zone_start}}.*?{{upc_zone_end}}', '', zpl_code, flags=re.DOTALL)
+        else:
+            # If UPC exists, just remove the markers themselves
+            zpl_code = zpl_code.replace('{{upc_zone_start}}', '')
+            zpl_code = zpl_code.replace('{{upc_zone_end}}', '')
         
         return JsonResponse({
             'success': True,
