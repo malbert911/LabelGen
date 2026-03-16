@@ -377,36 +377,10 @@ func sendZPLToPrinter(printerName, zplData string) error {
 }
 
 func sendZPLToPrinterWindows(printerName, zplData string) error {
-	if err := writeRawZPLToWindowsPrinter(printerName, []byte(zplData)); err == nil {
-		log.Printf("Printed %d bytes to %s (raw spooler)", len(zplData), printerName)
-		return nil
-	} else {
-		log.Printf("raw spooler write failed (%v), falling back to print command", err)
+	if err := writeRawZPLToWindowsPrinter(printerName, []byte(zplData)); err != nil {
+		return fmt.Errorf("raw spooler print failed: %w", err)
 	}
-
-	tmpFile, err := os.CreateTemp("", "label-*.zpl")
-	if err != nil {
-		return fmt.Errorf("failed to create temp file: %w", err)
-	}
-	defer os.Remove(tmpFile.Name())
-
-	if _, err := tmpFile.WriteString(zplData); err != nil {
-		tmpFile.Close()
-		return fmt.Errorf("failed to write temp file: %w", err)
-	}
-	tmpFile.Close()
-
-	printerArg := fmt.Sprintf(`/D:"%s"`, printerName)
-	cmd := exec.Command("cmd", "/C", "print", printerArg, tmpFile.Name())
-	var out bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("print command failed: %w (stdout=%s stderr=%s)", err, out.String(), stderr.String())
-	}
-
-	log.Printf("Printed %d bytes to %s (via print command)", len(zplData), printerName)
+	log.Printf("Printed %d bytes to %s (raw spooler)", len(zplData), printerName)
 	return nil
 }
 

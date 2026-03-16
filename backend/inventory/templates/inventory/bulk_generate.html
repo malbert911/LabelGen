@@ -298,7 +298,7 @@ document.getElementById('generateBtn').addEventListener('click', async function(
             if (res.success && res.serials) {
                 res.serials.forEach(serial => {
                     generatedSerials.push({
-                        serial_number: serial.serial_number,
+                        serial_number: serial,
                         part_number: res.part_number,
                         upc: serial.upc || ''
                     });
