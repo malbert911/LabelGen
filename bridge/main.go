@@ -378,10 +378,10 @@ func sendZPLToPrinter(printerName, zplData string) error {
 
 func sendZPLToPrinterWindows(printerName, zplData string) error {
 	if err := writeRawZPLToWindowsPrinter(printerName, []byte(zplData)); err == nil {
-		log.Printf("Printed %d bytes to %s (raw via Win32 spooler)", len(zplData), printerName)
+		log.Printf("Printed %d bytes to %s (raw spooler)", len(zplData), printerName)
 		return nil
 	} else {
-		log.Printf("raw Win32 spooler failed, falling back to print command: %v", err)
+		log.Printf("raw spooler write failed (%v), falling back to print command", err)
 	}
 
 	tmpFile, err := os.CreateTemp("", "label-*.zpl")
