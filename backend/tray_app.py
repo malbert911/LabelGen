@@ -13,6 +13,7 @@ import subprocess
 import threading
 import webbrowser
 import time
+import traceback
 from pathlib import Path
 
 try:
@@ -159,6 +160,12 @@ class LabelGenTrayApp:
     def _run_django_frozen(self):
         """Run Django server directly when frozen (in thread)"""
         try:
+            # Ensure we have usable stdout/stderr in tray mode
+            if sys.stdout is None:
+                sys.stdout = open(os.devnull, 'w', encoding='utf-8', errors='ignore')
+            if sys.stderr is None:
+                sys.stderr = open(os.devnull, 'w', encoding='utf-8', errors='ignore')
+
             # Set up Django
             os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'labelgen.settings')
             
@@ -174,6 +181,7 @@ class LabelGenTrayApp:
                 print("✓ Migrations applied")
             except Exception as e:
                 print(f"Warning: Migration error: {e}")
+                self.log(f"Warning: Migration error: {e}")
             
             # Check if Config object exists, create if not
             try:
@@ -184,12 +192,14 @@ class LabelGenTrayApp:
                     print("✓ Config created")
             except Exception as e:
                 print(f"Warning: Config check error: {e}")
+                self.log(f"Warning: Config check error: {e}")
             
             # Run server
             sys.argv = ['manage.py', 'runserver', str(self.port), '--noreload']
             execute_from_command_line(sys.argv)
         except Exception as e:
             self.log(f"Error running Django: {e}")
+            self.log(traceback.format_exc())
             print(f"Error running Django: {e}")
         finally:
             self.running = False
