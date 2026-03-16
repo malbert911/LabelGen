@@ -125,11 +125,11 @@ class LabelTemplateForm(forms.ModelForm):
                 'rows': 12,
                 'style': 'font-family: monospace; font-size: 12px;'
             }),
-            'serial_label_width': forms.NumberInput(attrs={'class': 'input'}),
-            'serial_label_height': forms.NumberInput(attrs={'class': 'input'}),
-            'box_label_width': forms.NumberInput(attrs={'class': 'input'}),
-            'box_label_height': forms.NumberInput(attrs={'class': 'input'}),
-            'label_dpi': forms.Select(attrs={'class': 'select'}),
+            'serial_label_width': forms.NumberInput(attrs={'class': 'input', 'step': '0.01', 'min': '0.1'}),
+            'serial_label_height': forms.NumberInput(attrs={'class': 'input', 'step': '0.01', 'min': '0.1'}),
+            'box_label_width': forms.NumberInput(attrs={'class': 'input', 'step': '0.01', 'min': '0.1'}),
+            'box_label_height': forms.NumberInput(attrs={'class': 'input', 'step': '0.01', 'min': '0.1'}),
+            'label_dpi': forms.NumberInput(attrs={'class': 'input', 'min': '1', 'placeholder': 'e.g., 203, 300, 600'}),
         }
 
 

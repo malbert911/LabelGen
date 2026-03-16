@@ -308,13 +308,11 @@ def preview_zpl(request):
         dpi = config.label_dpi
         
         # Convert DPI to DPMM (dots per millimeter) for Labelary API
-        # 203 DPI = 8 DPMM, 300 DPI = 12 DPMM, 600 DPI = 24 DPMM
-        dpi_to_dpmm = {
-            203: '8dpmm',
-            300: '12dpmm',
-            600: '24dpmm'
-        }
-        dpmm = dpi_to_dpmm.get(dpi, '8dpmm')  # Default to 8dpmm if DPI not recognized
+        # Formula: DPMM = DPI / 25.4 (since 1 inch = 25.4 mm)
+        # Round to nearest integer for Labelary API
+        # Common values: 203 DPI ≈ 8 DPMM, 300 DPI ≈ 12 DPMM, 600 DPI ≈ 24 DPMM
+        dpmm_value = round(dpi / 25.4)
+        dpmm = f'{dpmm_value}dpmm'
         
         # Labelary API endpoint: POST http://api.labelary.com/v1/printers/{dpmm}/labels/{width}x{height}/0/
         url = f'http://api.labelary.com/v1/printers/{dpmm}/labels/{width}x{height}/0/'

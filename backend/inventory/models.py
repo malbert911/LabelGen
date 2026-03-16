@@ -124,40 +124,48 @@ class Config(models.Model):
     )
     
     # Serial Label Dimensions
-    serial_label_width = models.IntegerField(
-        default=4,
-        validators=[MinValueValidator(1)],
+    serial_label_width = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=4.0,
+        validators=[MinValueValidator(0.1)],
         verbose_name="Serial Label Width (inches)",
-        help_text="Width of serial labels in inches"
+        help_text="Width of serial labels in inches (e.g., 4.0 or 3.5)"
     )
     
-    serial_label_height = models.IntegerField(
-        default=2,
-        validators=[MinValueValidator(1)],
+    serial_label_height = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=2.0,
+        validators=[MinValueValidator(0.1)],
         verbose_name="Serial Label Height (inches)",
-        help_text="Height of serial labels in inches"
+        help_text="Height of serial labels in inches (e.g., 2.0 or 2.5)"
     )
     
     # Box Label Dimensions
-    box_label_width = models.IntegerField(
-        default=4,
-        validators=[MinValueValidator(1)],
+    box_label_width = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=4.0,
+        validators=[MinValueValidator(0.1)],
         verbose_name="Box Label Width (inches)",
-        help_text="Width of box labels in inches"
+        help_text="Width of box labels in inches (e.g., 4.0 or 3.5)"
     )
     
-    box_label_height = models.IntegerField(
-        default=3,
-        validators=[MinValueValidator(1)],
+    box_label_height = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=3.0,
+        validators=[MinValueValidator(0.1)],
         verbose_name="Box Label Height (inches)",
-        help_text="Height of box labels in inches"
+        help_text="Height of box labels in inches (e.g., 3.0 or 2.5)"
     )
     
     label_dpi = models.IntegerField(
         default=203,
-        choices=[(203, '203 DPI'), (300, '300 DPI'), (600, '600 DPI')],
+        validators=[MinValueValidator(1)],
         verbose_name="Printer DPI",
-        help_text="Printer resolution in dots per inch"
+        help_text="Printer resolution in dots per inch (common: 203, 300, 600)"
     )
 
     class Meta:

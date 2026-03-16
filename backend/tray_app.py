@@ -12,6 +12,7 @@ import sys
 import subprocess
 import threading
 import webbrowser
+import time
 from pathlib import Path
 
 try:
@@ -31,6 +32,7 @@ class LabelGenTrayApp:
         self.server_process = None
         self.server_thread = None
         self.icon = None
+        self.log_lock = threading.Lock()
         
         # Use executable location when frozen, script location otherwise
         if IS_FROZEN:
@@ -40,7 +42,59 @@ class LabelGenTrayApp:
         
         self.port = 8001
         self.running = False
-        
+        self.log_path = self.base_dir / 'labelgen_tray.log'
+        self.max_log_size = 1024 * 1024
+        self.log('Tray app initialized')
+
+    def _prune_log_if_needed(self):
+        try:
+            if self.log_path.exists() and self.log_path.stat().st_size > self.max_log_size:
+                with open(self.log_path, 'rb') as f:
+                    size = f.seek(0, os.SEEK_END)
+                    keep_bytes = self.max_log_size // 2
+                    if size > keep_bytes:
+                        f.seek(-keep_bytes, os.SEEK_END)
+                    else:
+                        f.seek(0)
+                    tail = f.read()
+                with open(self.log_path, 'wb') as f:
+                    f.write(b"--- truncated old logs ---\n")
+                    f.write(tail)
+        except Exception:
+            pass
+
+    def log(self, message):
+        """Append timestamped messages to log file."""
+        try:
+            ts = time.strftime('%Y-%m-%d %H:%M:%S')
+            line = f"[{ts}] {message}\n"
+            with self.log_lock:
+                self._prune_log_if_needed()
+                with open(self.log_path, 'a', encoding='utf-8') as f:
+                    f.write(line)
+        except Exception:
+            # Logging should not crash the tray
+            pass
+
+    def _capture_subprocess_output(self):
+        def reader(stream, name):
+            try:
+                for raw in iter(stream.readline, b''):
+                    if not raw:
+                        break
+                    text = raw.decode(errors='replace').rstrip()
+                    self.log(f"{name}: {text}")
+            except Exception as e:
+                self.log(f"Error reading {name}: {e}")
+
+        if self.server_process is None:
+            return
+
+        if self.server_process.stdout:
+            threading.Thread(target=reader, args=(self.server_process.stdout, 'STDOUT'), daemon=True).start()
+        if self.server_process.stderr:
+            threading.Thread(target=reader, args=(self.server_process.stderr, 'STDERR'), daemon=True).start()
+
     def create_icon(self):
         """Create a simple icon for the system tray"""
         # Create a blue square with "LG" text
@@ -72,6 +126,7 @@ class LabelGenTrayApp:
                 python_exe = sys.executable
                 
                 cmd = [python_exe, str(manage_py), 'runserver', str(self.port), '--noreload']
+                self.log(f"Starting subprocess: {cmd} cwd={self.base_dir}")
                 
                 # Start server in background
                 startupinfo = None
@@ -85,16 +140,21 @@ class LabelGenTrayApp:
                     cwd=str(self.base_dir),
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
+                    stdin=subprocess.DEVNULL,
                     startupinfo=startupinfo
                 )
+                self._capture_subprocess_output()
             
+            self.running = True
+            self.log(f"Server started on port {self.port}")
             # Update icon title
             if self.icon:
                 self.icon.title = "LabelGen (Running)"
             
         except Exception as e:
-            print(f"Error starting server: {e}")
+            self.log(f"Error starting server: {e}")
             self.running = False
+            print(f"Error starting server: {e}")
     
     def _run_django_frozen(self):
         """Run Django server directly when frozen (in thread)"""
@@ -129,17 +189,21 @@ class LabelGenTrayApp:
             sys.argv = ['manage.py', 'runserver', str(self.port), '--noreload']
             execute_from_command_line(sys.argv)
         except Exception as e:
+            self.log(f"Error running Django: {e}")
             print(f"Error running Django: {e}")
         finally:
             self.running = False
+            self.log("Frozen Django thread exiting")
     
     def stop_server(self):
         """Stop the Django server"""
         if self.server_process:
+            self.log("Stopping subprocess server")
             try:
                 self.server_process.terminate()
                 self.server_process.wait(timeout=5)
             except subprocess.TimeoutExpired:
+                self.log("Subprocess did not terminate, killing")
                 self.server_process.kill()
             finally:
                 self.server_process = None
@@ -147,24 +211,29 @@ class LabelGenTrayApp:
         if self.running:
             self.running = False
             # Thread will exit when Django stops
+        self.log("Server stopped")
                 
         if self.icon:
             self.icon.title = "LabelGen (Stopped)"
     
     def open_browser(self, icon, item):
         """Open the application in default browser"""
+        self.log("Open browser action")
         webbrowser.open(f'http://127.0.0.1:{self.port}/')
     
     def open_admin(self, icon, item):
         """Open admin panel in browser"""
+        self.log("Open admin panel action")
         webbrowser.open(f'http://127.0.0.1:{self.port}/admin-upc/')
     
     def open_printer_settings(self, icon, item):
         """Open printer settings in browser"""
+        self.log("Open printer settings action")
         webbrowser.open(f'http://127.0.0.1:{self.port}/printer-settings/')
     
     def quit_app(self, icon, item):
         """Quit the application"""
+        self.log("Quit requested")
         self.stop_server()
         icon.stop()
     
@@ -180,6 +249,7 @@ class LabelGenTrayApp:
     
     def run(self):
         """Run the tray application"""
+        self.log('Tray app run starting')
         # Start server automatically
         threading.Thread(target=self.start_server, daemon=True).start()
         
@@ -212,14 +282,17 @@ def main():
     
     print("Starting LabelGen...")
     app = LabelGenTrayApp()
-    
+    app.log('Main started')
+
     try:
         app.run()
     except KeyboardInterrupt:
         print("\nShutting down...")
+        app.log('KeyboardInterrupt: shutting down')
         app.stop_server()
     except Exception as e:
         print(f"Error: {e}")
+        app.log(f"Fatal exception in main: {e}")
         app.stop_server()
         sys.exit(1)
     finally:
