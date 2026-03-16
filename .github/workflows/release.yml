@@ -115,7 +115,7 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
         run: |
           cd bridge
-          go build -o ${{ matrix.artifact_name }} main.go
+          go build -o ${{ matrix.artifact_name }} .
 
       - name: Set executable permissions (Unix)
         if: runner.os != 'Windows'
