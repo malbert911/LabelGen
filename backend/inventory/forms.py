@@ -110,8 +110,8 @@ class LabelTemplateForm(forms.ModelForm):
     class Meta:
         model = Config
         fields = [
-            'serial_label_zpl', 'serial_label_width', 'serial_label_height',
-            'box_label_zpl', 'box_label_width', 'box_label_height',
+            'serial_label_zpl',
+            'box_label_zpl',
             'label_dpi'
         ]
         widgets = {
@@ -125,10 +125,6 @@ class LabelTemplateForm(forms.ModelForm):
                 'rows': 12,
                 'style': 'font-family: monospace; font-size: 12px;'
             }),
-            'serial_label_width': forms.NumberInput(attrs={'class': 'input', 'step': '0.01', 'min': '0.1'}),
-            'serial_label_height': forms.NumberInput(attrs={'class': 'input', 'step': '0.01', 'min': '0.1'}),
-            'box_label_width': forms.NumberInput(attrs={'class': 'input', 'step': '0.01', 'min': '0.1'}),
-            'box_label_height': forms.NumberInput(attrs={'class': 'input', 'step': '0.01', 'min': '0.1'}),
             'label_dpi': forms.NumberInput(attrs={'class': 'input', 'min': '1', 'placeholder': 'e.g., 203, 300, 600'}),
         }
 

@@ -133,8 +133,6 @@ go build -o labelgen-bridge
 - **admin_password**: Admin interface password (default: "admin")
 - **serial_label_zpl**: ZPL template for 4x2" serial labels
 - **box_label_zpl**: ZPL template for 4x3" box labels
-- **serial_label_width/height**: Label dimensions in inches
-- **box_label_width/height**: Label dimensions in inches
 - **label_dpi**: DPI selector (203/300/600)
 
 ### 🖨️ Printer Bridge Features

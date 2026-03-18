@@ -73,10 +73,6 @@ Simple password-protected admin (not Django's built-in admin) with auto-logout w
 - `admin_password` (CharField) - Admin password (default: "admin")
 - `serial_label_zpl` (TextField) - ZPL template for 4x2" serial labels
 - `box_label_zpl` (TextField) - ZPL template for 4x3" box labels
-- `serial_label_width` (DecimalField) - Serial label width in inches (default: 4.0)
-- `serial_label_height` (DecimalField) - Serial label height in inches (default: 2.0)
-- `box_label_width` (DecimalField) - Box label width in inches (default: 4.0)
-- `box_label_height` (DecimalField) - Box label height in inches (default: 3.0)
 - `label_dpi` (IntegerField) - Printer DPI: 203, 300, or 600 (default: 203)
 
 ## File Structure

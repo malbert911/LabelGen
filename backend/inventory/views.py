@@ -295,16 +295,16 @@ def preview_zpl(request):
         zpl_code = data.get('zpl', '')
         label_type = data.get('label_type', 'serial')  # 'serial' or 'box'
         
-        # Get config to determine label size
+        # Get config for DPI
         config = SerialNumberGenerator.get_config()
         
-        # Get dimensions based on label type
+        # Use standard dimensions for label preview
         if label_type == 'box':
-            width = config.box_label_width
-            height = config.box_label_height
+            width = 4.0
+            height = 3.0
         else:  # serial
-            width = config.serial_label_width
-            height = config.serial_label_height
+            width = 4.0
+            height = 2.0
         
         dpi = config.label_dpi
         

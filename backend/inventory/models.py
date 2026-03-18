@@ -123,44 +123,6 @@ class Config(models.Model):
         help_text="ZPL template for shipping box labels. Use {{part}}, {{serial}}, {{upc_full}}, {{upc_11_digits}} as placeholders."
     )
     
-    # Serial Label Dimensions
-    serial_label_width = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        default=4.0,
-        validators=[MinValueValidator(0.1)],
-        verbose_name="Serial Label Width (inches)",
-        help_text="Width of serial labels in inches (e.g., 4.0 or 3.5)"
-    )
-    
-    serial_label_height = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        default=2.0,
-        validators=[MinValueValidator(0.1)],
-        verbose_name="Serial Label Height (inches)",
-        help_text="Height of serial labels in inches (e.g., 2.0 or 2.5)"
-    )
-    
-    # Box Label Dimensions
-    box_label_width = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        default=4.0,
-        validators=[MinValueValidator(0.1)],
-        verbose_name="Box Label Width (inches)",
-        help_text="Width of box labels in inches (e.g., 4.0 or 3.5)"
-    )
-    
-    box_label_height = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        default=3.0,
-        validators=[MinValueValidator(0.1)],
-        verbose_name="Box Label Height (inches)",
-        help_text="Height of box labels in inches (e.g., 3.0 or 2.5)"
-    )
-    
     label_dpi = models.IntegerField(
         default=203,
         validators=[MinValueValidator(1)],
