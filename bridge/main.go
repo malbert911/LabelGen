@@ -4,16 +4,27 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/getlantern/systray"
 	"github.com/rs/cors"
+	"gopkg.in/natefinch/lumberjack.v2"
+)
+
+var (
+	logFile    *lumberjack.Logger
+	httpServer *http.Server
+	serverMu   sync.Mutex
 )
 
 // Printer represents a printer device
@@ -439,7 +450,32 @@ func HealthCheck(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func main() {
+func setupLogger() error {
+	exePath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("failed to get executable path: %w", err)
+	}
+
+	logDir := filepath.Dir(exePath)
+	logPath := filepath.Join(logDir, "labelgen-bridge.log")
+
+	logFile = &lumberjack.Logger{
+		Filename:   logPath,
+		MaxSize:    1, // 1 MB
+		MaxBackups: 3,
+		MaxAge:     7, // 7 days
+		Compress:   true,
+	}
+
+	// Create a multi-writer that writes to both file and stdout
+	mw := io.MultiWriter(logFile, os.Stdout)
+	log.SetOutput(mw)
+	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+
+	return nil
+}
+
+func startHTTPServer() error {
 	mux := http.NewServeMux()
 
 	// Register routes
@@ -458,14 +494,151 @@ func main() {
 	handler := c.Handler(mux)
 
 	port := ":5001"
-	log.Printf("🖨️  LabelGen Printer Bridge starting on http://localhost%s", port)
+	httpServer = &http.Server{
+		Addr:    port,
+		Handler: handler,
+	}
+
+	log.Printf("🖨️  Starting HTTP server on http://localhost%s", port)
+	go func() {
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Printf("HTTP server error: %v", err)
+		}
+	}()
+
+	return nil
+}
+
+func createTrayIcon() []byte {
+	// Create a minimal 16x16 PNG icon (white square for printer icon representation)
+	// This is a very small valid PNG file
+	return []byte{
+		0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D,
+		0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x10,
+		0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x91, 0x68, 0x36, 0x00, 0x00, 0x00,
+		0x1F, 0x74, 0x45, 0x58, 0x74, 0x53, 0x6F, 0x66, 0x74, 0x77, 0x61, 0x72,
+		0x65, 0x00, 0x41, 0x64, 0x6F, 0x62, 0x65, 0x20, 0x49, 0x6D, 0x61, 0x67,
+		0x65, 0x52, 0x65, 0x61, 0x64, 0x79, 0x71, 0xC9, 0x65, 0x3C, 0x00, 0x00,
+		0x00, 0x2A, 0x49, 0x44, 0x41, 0x54, 0x78, 0xDA, 0xEC, 0xC1, 0x01, 0x0D,
+		0x00, 0x00, 0x00, 0xC2, 0xA0, 0xF5, 0x4F, 0xED, 0x61, 0x0D, 0xA0, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x3C, 0x7E, 0x41, 0x8B, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45,
+		0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+	}
+}
+
+func onReady() {
+	systray.SetIcon(createTrayIcon())
+	systray.SetTitle("LabelGen Bridge")
+	systray.SetTooltip("LabelGen Printer Bridge - Running")
+
+	// Create menu items
+	mStatus := systray.AddMenuItem("Status: Running", "Server Status")
+	mStatus.Disable()
+
+	systray.AddSeparator()
+
+	mViewLogs := systray.AddMenuItem("View Logs", "Open log file")
+	mOpenServer := systray.AddMenuItem("Open Web Interface", "Open http://localhost:5001")
+
+	systray.AddSeparator()
+
+	mQuit := systray.AddMenuItem("Quit", "Quit LabelGen Bridge")
+
+	// Handle menu clicks
+	go func() {
+		for {
+			select {
+			case <-mViewLogs.ClickedCh:
+				openLogFile()
+			case <-mOpenServer.ClickedCh:
+				openWebInterface()
+			case <-mQuit.ClickedCh:
+				log.Println("Quit requested from tray menu")
+				systray.Quit()
+				return
+			}
+		}
+	}()
+}
+
+func openLogFile() {
+	if logFile == nil {
+		log.Println("Log file not available")
+		return
+	}
+
+	logPath := logFile.Filename
+	log.Printf("Opening log file: %s", logPath)
+
+	switch runtime.GOOS {
+	case "windows":
+		exec.Command("cmd", "/c", "start", logPath).Run()
+	case "darwin":
+		exec.Command("open", logPath).Run()
+	case "linux":
+		exec.Command("xdg-open", logPath).Run()
+	}
+}
+
+func openWebInterface() {
+	url := "http://localhost:5001/health"
+	log.Printf("Opening web interface: %s", url)
+
+	switch runtime.GOOS {
+	case "windows":
+		exec.Command("cmd", "/c", "start", url).Run()
+	case "darwin":
+		exec.Command("open", url).Run()
+	case "linux":
+		exec.Command("xdg-open", url).Run()
+	}
+}
+
+func onExit() {
+	log.Println("Shutting down...")
+
+	serverMu.Lock()
+	if httpServer != nil {
+		if err := httpServer.Close(); err != nil {
+			log.Printf("Error closing HTTP server: %v", err)
+		}
+	}
+	serverMu.Unlock()
+
+	if logFile != nil {
+		logFile.Close()
+	}
+}
+
+func main() {
+	// Initialize logger early
+	if err := setupLogger(); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to setup logger: %v\n", err)
+		os.Exit(1)
+	}
+
+	log.Println("════════════════════════════════════════════════════════════")
+	log.Println("🖨️  LabelGen Printer Bridge - System Tray Edition")
+	log.Printf("📋 Starting on %s", time.Now().Format("2006-01-02 15:04:05"))
 	log.Printf("📋 Operating System: %s", runtime.GOOS)
+	log.Println("════════════════════════════════════════════════════════════")
+
+	// Hide console window on Windows
+	hideConsoleWindow()
+
+	// Start HTTP server
+	if err := startHTTPServer(); err != nil {
+		log.Fatalf("Failed to start HTTP server: %v", err)
+	}
+
+	// Log available endpoints
 	log.Println("📋 Available endpoints:")
 	log.Println("   GET  /health   - Health check")
 	log.Println("   GET  /printers - List available printers")
 	log.Println("   POST /print    - Send print job")
+	log.Println("════════════════════════════════════════════════════════════")
 
-	if err := http.ListenAndServe(port, handler); err != nil {
-		log.Fatalf("Server failed to start: %v", err)
-	}
+	// Start system tray application
+	systray.Run(onReady, onExit)
 }
