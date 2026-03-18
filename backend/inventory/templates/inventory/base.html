@@ -612,11 +612,72 @@
             },
             
             /**
-             * Batch print multiple labels
+             * Generate ZPL for multiple labels in parallel
+             * @param {string} labelType - 'serial' or 'box'
+             * @param {Array<Object>} dataArray - Array of label data objects
+             * @returns {Promise<Array>} Array of {zpl, data, index} with successful generations
+             */
+            async generateBatchZPL(labelType, dataArray) {
+                // Generate all ZPL in parallel for maximum speed
+                const zplPromises = dataArray.map((data, index) => 
+                    this.generateZPL(labelType, data)
+                        .then(zpl => ({ zpl, data, index, success: true }))
+                        .catch(error => ({ data, index, success: false, error: error.message }))
+                );
+                
+                return await Promise.all(zplPromises);
+            },
+            
+            /**
+             * Send concatenated batch of ZPL labels to printer
+             * @param {string} printerId - Printer ID
+             * @param {Array<string>} zplArray - Array of ZPL strings to concatenate
+             * @returns {Promise<Object>} Print result
+             */
+            async sendBatchToPrinter(printerId, zplArray) {
+                try {
+                    // Concatenate all ZPL commands into one string
+                    const batchZPL = zplArray.join('');
+                    
+                    const response = await fetch(`${this.BRIDGE_URL}/print`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            printer_id: printerId,
+                            data: {
+                                zpl: batchZPL
+                            }
+                        }),
+                        signal: AbortSignal.timeout(10000)
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Bridge returned ${response.status}`);
+                    }
+                    
+                    const result = await response.json();
+                    
+                    if (!result.success) {
+                        throw new Error(result.error || 'Batch print failed');
+                    }
+                    
+                    return result;
+                } catch (error) {
+                    console.error('Failed to send batch to printer:', error);
+                    showNotification(`Batch print failed: ${error.message}`, 'danger');
+                    throw error;
+                }
+            },
+            
+            /**
+             * Batch print multiple labels (optimized)
+             * Generates all ZPL in parallel, then sends as one batch command
              * @param {string} labelType - 'serial' or 'box'
              * @param {Array<Object>} dataArray - Array of label data objects
              * @param {string} printerId - Optional printer ID
-             * @param {Function} progressCallback - Called after each print with (current, total)
+             * @param {Function} progressCallback - Called with (successCount, totalCount) after generation completes
              * @returns {Promise<Object>} Summary with success/failure counts
              */
             async printBatch(labelType, dataArray, printerId = null, progressCallback = null) {
@@ -628,32 +689,54 @@
                     throw new Error(msg);
                 }
                 
-                let successful = 0;
-                let failed = 0;
-                const errors = [];
-                
-                for (let i = 0; i < dataArray.length; i++) {
-                    try {
-                        await this.printLabel(labelType, dataArray[i], selectedPrinter, true); // silent mode
-                        successful++;
-                    } catch (error) {
-                        failed++;
-                        errors.push({ index: i, data: dataArray[i], error: error.message });
+                try {
+                    // Phase 1: Generate all ZPL in parallel
+                    // Since all generation happens concurrently, no granular progress updates needed
+                    const zplResults = await this.generateBatchZPL(labelType, dataArray);
+                    
+                    // Track which ones succeeded
+                    const successfulResults = zplResults.filter(r => r.success);
+                    const failedResults = zplResults.filter(r => !r.success);
+                    
+                    // Report progress after generation - semantically consistent throughout
+                    // (successful, total) so UI shows meaningful counts
+                    if (progressCallback) {
+                        progressCallback(successfulResults.length, dataArray.length);
                     }
                     
-                    if (progressCallback) {
-                        progressCallback(i + 1, dataArray.length, successful, failed);
+                    // Phase 2: Send batch to printer if we have any successful ZPL
+                    // All labels sent in one network call - much faster than serial approach
+                    if (successfulResults.length > 0) {
+                        const zplArray = successfulResults.map(r => r.zpl);
+                        await this.sendBatchToPrinter(selectedPrinter, zplArray);
                     }
+                    
+                    // Compile results
+                    const summary = {
+                        total: dataArray.length,
+                        successful: successfulResults.length,
+                        failed: failedResults.length,
+                        errors: failedResults.map(r => ({
+                            index: r.index,
+                            data: r.data,
+                            error: r.error
+                        }))
+                    };
+                    
+                    // Show summary notification
+                    if (summary.failed === 0) {
+                        showNotification(`✓ Batch printed successfully! (${summary.successful} labels)`, 'success');
+                    } else if (summary.successful === 0) {
+                        showNotification(`✗ Batch failed - all labels had errors`, 'danger');
+                    } else {
+                        showNotification(`⚠ Batch partially printed (${summary.successful} ok, ${summary.failed} failed)`, 'warning');
+                    }
+                    
+                    return summary;
+                } catch (error) {
+                    console.error('Batch print error:', error);
+                    throw error;
                 }
-                
-                const summary = {
-                    total: dataArray.length,
-                    successful,
-                    failed,
-                    errors
-                };
-                
-                return summary;
             },
             
             /**
