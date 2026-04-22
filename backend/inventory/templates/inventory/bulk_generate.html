@@ -245,6 +245,7 @@ document.getElementById('generateBtn').addEventListener('click', async function(
     const btn = this;
     btn.classList.add('is-loading');
     btn.disabled = true;
+    generatedSerials = [];
     
     // Check if printer is selected upfront
     const selectedPrinter = PrinterBridge.getSelectedPrinter('serial');

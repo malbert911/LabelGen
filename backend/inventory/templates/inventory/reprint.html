@@ -186,8 +186,8 @@ async function reprintLabel(serial, part, upc = '') {
     
     try {
         await PrinterBridge.printLabel('serial', {
-            serial_n,
-            show_branding: showBrandingumber: serial,
+            serial_number: serial,
+            show_branding: showBranding,
             part_number: part,
             upc: upc
         }, selectedPrinter);
