@@ -485,7 +485,7 @@ func startHTTPServer() error {
 
 	// Setup CORS to allow requests from Django (localhost:8001)
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:8001", "http://127.0.0.1:8001"},
+		AllowedOrigins:   []string{"http://localhost:8001", "http://127.0.0.1:8001", "http://10.127.205.187:8001"},
 		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Accept"},
 		AllowCredentials: true,
