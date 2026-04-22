@@ -230,17 +230,17 @@ class LabelGenTrayApp:
     def open_browser(self, icon, item):
         """Open the application in default browser"""
         self.log("Open browser action")
-        webbrowser.open(f'http://localhost:{self.port}/')
+        webbrowser.open(f'http://10.127.205.187:{self.port}/')
     
     def open_admin(self, icon, item):
         """Open admin panel in browser"""
         self.log("Open admin panel action")
-        webbrowser.open(f'http://localhost:{self.port}/admin-upc/')
+        webbrowser.open(f'http://10.127.205.187:{self.port}/admin-upc/')
     
     def open_printer_settings(self, icon, item):
         """Open printer settings in browser"""
         self.log("Open printer settings action")
-        webbrowser.open(f'http://localhost:{self.port}/printer-settings/')
+        webbrowser.open(f'http://10.127.205.187:{self.port}/printer-settings/')
     
     def quit_app(self, icon, item):
         """Quit the application"""
