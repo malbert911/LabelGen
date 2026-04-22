@@ -294,6 +294,7 @@ document.getElementById('generateBtn').addEventListener('click', async function(
             btn.disabled = false;
             btn.innerHTML = BUTTON_DEFAULT_HTML;
             return;
+        }
         const showBranding = document.getElementById('showBrandingCheckbox') ? document.getElementById('showBrandingCheckbox').checked : true;
         
         result.data.results.forEach(res => {
@@ -303,11 +304,7 @@ document.getElementById('generateBtn').addEventListener('click', async function(
                         serial_number: serial,
                         part_number: res.part_number,
                         upc: serial.upc || '',
-                        show_branding: showBranding {
-                    generatedSerials.push({
-                        serial_number: serial,
-                        part_number: res.part_number,
-                        upc: serial.upc || ''
+                        show_branding: showBranding
                     });
                 });
             }
