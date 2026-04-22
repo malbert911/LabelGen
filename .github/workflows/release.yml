@@ -119,6 +119,9 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: ${{ matrix.goarch == 'amd64' && matrix.goos == 'darwin' && '1' || '1' }}
+          CC: ${{ matrix.goarch == 'amd64' && matrix.goos == 'darwin' && 'clang' || 'gcc' }}
+          CFLAGS: ${{ matrix.goarch == 'amd64' && matrix.goos == 'darwin' && '-target x86_64-apple-macos10.13' || '' }}
         run: |
           cd bridge
           go build -o ${{ matrix.artifact_name }} .
