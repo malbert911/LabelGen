@@ -528,7 +528,9 @@ func createTrayIcon() []byte {
 }
 
 func onReady() {
-	systray.SetIcon(createTrayIcon())
+	if runtime.GOOS != "windows" {
+		systray.SetIcon(createTrayIcon())
+	}
 	systray.SetTitle("LabelGen Bridge")
 	systray.SetTooltip("LabelGen Printer Bridge - Running")
 
@@ -625,7 +627,7 @@ func main() {
 	log.Println("════════════════════════════════════════════════════════════")
 
 	// Hide console window on Windows
-	// hideConsoleWindow()
+	hideConsoleWindow()
 
 	// Start HTTP server
 	if err := startHTTPServer(); err != nil {
