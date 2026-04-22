@@ -625,7 +625,7 @@ func main() {
 	log.Println("════════════════════════════════════════════════════════════")
 
 	// Hide console window on Windows
-	hideConsoleWindow()
+	// hideConsoleWindow()
 
 	// Start HTTP server
 	if err := startHTTPServer(); err != nil {
