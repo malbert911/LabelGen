@@ -180,6 +180,11 @@
                 (e.g., 012345678905)</li>
             <li><code>{% templatetag openvariable %}upc_11_digits{% templatetag closevariable %}</code> - First 11
                 digits of UPC for barcode (e.g., 01234567890)</li>
+            <li><code>{% templatetag openvariable %}upc_zone_start{% templatetag closevariable %}</code> /
+                <code>{% templatetag openvariable %}upc_zone_end{% templatetag closevariable %}</code> - Only prints the UPC information if part has a UPC assigned.</li>
+            <li><code>{% templatetag openvariable %}branding_zone_start{% templatetag closevariable %}</code> /
+                <code>{% templatetag openvariable %}branding_zone_end{% templatetag closevariable %}</code> - Optional
+                branding block (can be toggled when printing)</li>
         </ul>
         <p class="mt-2"><strong>Preview:</strong> Click preview buttons to render labels locally. You can also test ZPL
             at <a href="https://labelary.com/viewer.html" target="_blank">Labelary Viewer</a>.</p>

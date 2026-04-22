@@ -101,23 +101,44 @@ class Config(models.Model):
     # ZPL Label Templates
     serial_label_zpl = models.TextField(
         default="""^XA
-^FO140,30^A0N,25,25^FDNe pas enlever (Garantie)^FS
-^FO140,60^A0N,25,25^FDDo not remove (Warranty)^FS
-^FO250,120^BY2^BCN,70,Y,N,N^FD{{serial}}^FS
-^FO310,210^A0N,30,30^FDSN.# {{serial}}^FS
+^MTT
+^PW406
+^LL176
+^LH0,20
+^FO12,10^A0,18^FDNe pas enlever (Garantie)/Do not remove (Warranty)^FS
+{{branding_zone_start}}
+^FO12,30^A0,25^FDdcalltech.com^FS
+{{branding_zone_end}}
+^FO170,30^A0N,25,30^FD{{part}}^FS
+^FO20,60^BY4^BCN,60,N,N,N,A^FD{{serial}}^FS
+^FO90,130^A0N,20,30^FDSER.#: {{serial}}^FS
 ^XZ""",
         verbose_name="Serial Label ZPL Template",
-        help_text="ZPL template for inventory serial number labels. Use {{serial}} for serial number."
+        help_text="ZPL template for inventory serial number labels. Use {{serial}} for serial number, {{branding_zone_start}} and {{branding_zone_end}} for optional branding."
     )
     
     box_label_zpl = models.TextField(
         default="""^XA
-^FO320,30^A0N,35,35^FD{{part}}^FS
-^FO250,80^BY2^BCN,70,Y,N,N^FD{{part}}^FS
-^FO250,170^BY2^BCN,70,Y,N,N^FD{{serial}}^FS
-^FO310,260^A0N,30,30^FDSN.# {{serial}}^FS
-^FO230,320^BY2^BUN,70^FD{{upc_11_digits}}^FS
-^FO260,400^A0N,25,25^FDUPC: {{upc_full}}^FS
+^MTT
+^PW812
+^LL607
+^LH0,0
+^CI28
+ 
+^FO20,190^A0N,30,30^FDNuméro de pièce:^FS
+^FO20,220^A0N,30,20^FDPart Number:^FS
+^FO20,255^A0N,45,45^FD{{part}}^FS
+^FO310,220^BY3^BCN,70,Y,N,N^FD{{part}}^FS
+ 
+^FO20,330^A0N,30,30^FDNuméro de série:^FS
+^FO20,360^A0N,30,20^FDSerial Number:^FS
+^FO20,395^A0N,45,45^FD{{serial}}^FS
+^FO310,360^BY3^BCN,70,Y,N,N^FD{{serial}}^FS
+ 
+{{upc_zone_start}}
+^FO50,460^BY3^BUN,80,Y,N,Y^FD{{upc_11_digits}}^FS
+{{upc_zone_end}}
+ 
 ^XZ""",
         verbose_name="Box Label ZPL Template",
         help_text="ZPL template for shipping box labels. Use {{part}}, {{serial}}, {{upc_full}}, {{upc_11_digits}} as placeholders."

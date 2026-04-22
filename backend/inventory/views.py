@@ -367,6 +367,7 @@ def generate_label_zpl(request):
         serial_number = data.get('serial_number', '')
         part_number = data.get('part_number', '')
         upc = data.get('upc', '')
+        show_branding = data.get('show_branding', True)
         
         config = SerialNumberGenerator.get_config()
         
@@ -404,6 +405,13 @@ def generate_label_zpl(request):
             # If UPC exists, just remove the markers themselves
             zpl_code = zpl_code.replace('{{upc_zone_start}}', '')
             zpl_code = zpl_code.replace('{{upc_zone_end}}', '')
+        # Handle branding zone
+        if not show_branding:
+            zpl_code = re.sub(r'{{branding_zone_start}}.*?{{branding_zone_end}}', '', zpl_code, flags=re.DOTALL)
+        else:
+            zpl_code = zpl_code.replace('{{branding_zone_start}}', '')
+            zpl_code = zpl_code.replace('{{branding_zone_end}}', '')
+        
         
         return JsonResponse({
             'success': True,

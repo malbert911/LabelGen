@@ -31,6 +31,13 @@
                 </div>
             </div>
             
+            <div class="field mt-4 mb-4">
+                <label class="checkbox">
+                    <input type="checkbox" id="showBrandingCheckbox" checked>
+                    <strong>Show branding on label</strong>
+                </label>
+            </div>
+            
             <button class="button is-info is-fullwidth is-large" id="searchBtn">
                 <span class="icon"><i class="fas fa-search"></i></span>
                 <span>Search</span>
@@ -153,6 +160,8 @@ document.getElementById('reprintBtn').addEventListener('click', function() {
 });
 
 async function reprintLabel(serial, part, upc = '') {
+    const showBranding = document.getElementById('showBrandingCheckbox') ? document.getElementById('showBrandingCheckbox').checked : true;
+    
     // Add to history
     reprintHistory.unshift({
         time: new Date().toLocaleTimeString(),
@@ -177,7 +186,8 @@ async function reprintLabel(serial, part, upc = '') {
     
     try {
         await PrinterBridge.printLabel('serial', {
-            serial_number: serial,
+            serial_n,
+            show_branding: showBrandingumber: serial,
             part_number: part,
             upc: upc
         }, selectedPrinter);

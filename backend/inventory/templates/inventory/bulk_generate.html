@@ -63,7 +63,11 @@
         </tbody>
     </table>
     
-    <div class="buttons is-right mt-4">
+    <div class="buttons is-right mt-4 is-align-items-center">
+        <label class="checkbox is-size-6 mr-4">
+            <input type="checkbox" id="showBrandingCheckbox" checked>
+            <strong>Show branding on labels</strong>
+        </label>
         <button class="button is-light" id="clearBtn">
             <span class="icon"><i class="fas fa-eraser"></i></span>
             <span>Clear All</span>
@@ -290,13 +294,16 @@ document.getElementById('generateBtn').addEventListener('click', async function(
             btn.disabled = false;
             btn.innerHTML = BUTTON_DEFAULT_HTML;
             return;
-        }
+        const showBranding = document.getElementById('showBrandingCheckbox') ? document.getElementById('showBrandingCheckbox').checked : true;
         
-        // Store generated serials
-        generatedSerials = [];
         result.data.results.forEach(res => {
             if (res.success && res.serials) {
                 res.serials.forEach(serial => {
+                    generatedSerials.push({
+                        serial_number: serial,
+                        part_number: res.part_number,
+                        upc: serial.upc || '',
+                        show_branding: showBranding {
                     generatedSerials.push({
                         serial_number: serial,
                         part_number: res.part_number,
