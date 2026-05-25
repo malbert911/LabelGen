@@ -196,7 +196,7 @@ class LabelGenTrayApp:
             
             # Run server
             # todo fix
-            sys.argv = ['manage.py', 'runserver', '10.127.205.187:8001', '--noreload']
+            sys.argv = ['manage.py', 'runserver', '0:8001', '--noreload']
             execute_from_command_line(sys.argv)
         except Exception as e:
             self.log(f"Error running Django: {e}")
@@ -230,17 +230,17 @@ class LabelGenTrayApp:
     def open_browser(self, icon, item):
         """Open the application in default browser"""
         self.log("Open browser action")
-        webbrowser.open(f'http://10.127.205.187:{self.port}/')
+        webbrowser.open(f'http://10.127.205.113:{self.port}/')
     
     def open_admin(self, icon, item):
         """Open admin panel in browser"""
         self.log("Open admin panel action")
-        webbrowser.open(f'http://10.127.205.187:{self.port}/admin-upc/')
+        webbrowser.open(f'http://10.127.205.113:{self.port}/admin-upc/')
     
     def open_printer_settings(self, icon, item):
         """Open printer settings in browser"""
         self.log("Open printer settings action")
-        webbrowser.open(f'http://10.127.205.187:{self.port}/printer-settings/')
+        webbrowser.open(f'http://10.127.205.113:{self.port}/printer-settings/')
     
     def quit_app(self, icon, item):
         """Quit the application"""
