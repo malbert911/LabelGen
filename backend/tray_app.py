@@ -196,7 +196,7 @@ class LabelGenTrayApp:
             
             # Run server
             # todo fix
-            sys.argv = ['manage.py', 'runserver', '--noreload']
+            sys.argv = ['manage.py', 'runserver', '0.0.0.0:8001', '--noreload']
             execute_from_command_line(sys.argv)
         except Exception as e:
             self.log(f"Error running Django: {e}")
